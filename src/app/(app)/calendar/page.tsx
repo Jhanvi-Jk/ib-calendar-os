@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { WeekGrid, type CalendarItem } from "@/components/calendar/WeekGrid";
+import { PlanBar } from "@/components/calendar/PlanBar";
 import { EmptyState } from "@/components/ui";
-import { getActiveRun, getEvents, getUserContext } from "@/lib/data/queries";
+import {
+  getActiveRun,
+  getEvents,
+  getOpenTasks,
+  getUserContext,
+} from "@/lib/data/queries";
+import type { Infeasibility } from "@/lib/domain/types";
 import {
   addLocalDays,
   fromEpochMinute,
@@ -30,13 +37,16 @@ export default async function CalendarPage({
   const weekStart = addLocalDays(thisWeekStart, offset * 7, timezone);
   const weekEnd = addLocalDays(weekStart, 7, timezone);
 
-  const [events, run] = await Promise.all([
+  const [events, run, tasks] = await Promise.all([
     getEvents(
       fromEpochMinute(weekStart).toISOString(),
       fromEpochMinute(weekEnd).toISOString(),
     ),
     getActiveRun(),
+    getOpenTasks(),
   ]);
+
+  const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
 
   const items: CalendarItem[] = [
     ...events.map((e) => ({
@@ -90,6 +100,13 @@ export default async function CalendarPage({
           </Link>
         </div>
       </div>
+
+      <PlanBar
+        infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}
+        stats={run?.stats ?? {}}
+        taskTitles={taskTitles}
+        hasPlan={Boolean(run)}
+      />
 
       {items.length === 0 ? (
         <EmptyState title="Nothing scheduled this week">

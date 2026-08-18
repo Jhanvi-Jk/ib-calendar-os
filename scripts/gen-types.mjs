@@ -88,6 +88,29 @@ const foreignKeys = query(`
   ) t;
 `);
 
+// Callable functions, so supabase.rpc() is typed rather than cast.
+// Trigger functions are excluded: they are never invoked over the API.
+const functions = query(`
+  select coalesce(json_agg(row_to_json(t)), '[]'::json) from (
+    select p.proname as name,
+           pg_get_function_arguments(p.oid) as args,
+           pg_get_function_result(p.oid) as returns
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      join pg_type rt on rt.oid = p.prorettype
+     where n.nspname = 'public'
+       and rt.typname <> 'trigger'
+       and p.prokind = 'f'
+       -- Skip functions installed by extensions (pgcrypto, btree_gist);
+       -- they are not part of this project's API surface.
+       and not exists (
+         select 1 from pg_depend d
+          where d.objid = p.oid and d.deptype = 'e'
+       )
+     order by p.proname
+  ) t;
+`);
+
 // A FK is one-to-one when its own columns are covered by a unique constraint.
 const uniqueSets = query(`
   select coalesce(json_agg(row_to_json(t)), '[]'::json) from (
@@ -133,6 +156,23 @@ function tsType(col) {
 function resolveBase(udt) {
   if (enumNames.has(udt)) return `Database["public"]["Enums"]["${udt}"]`;
   return SCALARS[udt] ?? "unknown";
+}
+
+/** Maps the SQL-level type names that pg_get_function_* returns. */
+const FN_TYPES = {
+  void: "undefined",
+  uuid: "string", text: "string", "character varying": "string",
+  integer: "number", smallint: "number", bigint: "number", numeric: "number",
+  "double precision": "number", real: "number",
+  boolean: "boolean", json: "Json", jsonb: "Json",
+  "timestamp with time zone": "string", "timestamp without time zone": "string",
+  date: "string", "time without time zone": "string",
+};
+
+function pgArgToTs(pgType) {
+  const base = pgType.replace(/\[\]$/, "").trim();
+  const mapped = FN_TYPES[base] ?? (enumNames.has(base) ? `Database["public"]["Enums"]["${base}"]` : "unknown");
+  return pgType.endsWith("[]") ? `${mapped}[]` : mapped;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +264,41 @@ for (const [table, cols] of [...byTable.entries()].sort()) {
 
 lines.push("    };");
 lines.push("    Views: { [_ in never]: never };");
-lines.push("    Functions: { [_ in never]: never };");
+
+if (functions.length === 0) {
+  lines.push("    Functions: { [_ in never]: never };");
+} else {
+  lines.push("    Functions: {");
+  for (const fn of functions) {
+    // "p_run_id uuid, p_label text DEFAULT NULL::text" -> typed Args object.
+    const args = (fn.args ?? "")
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean)
+      .map((a) => {
+        const withoutDefault = a.split(/\s+DEFAULT\s+/i)[0].trim();
+        const parts = withoutDefault.split(/\s+/);
+        const argName = parts.shift();
+        const pgType = parts.join(" ").toLowerCase();
+        return { name: argName, ts: pgArgToTs(pgType), optional: /DEFAULT/i.test(a) };
+      })
+      .filter((a) => a.name);
+
+    lines.push(`      ${fn.name}: {`);
+    if (args.length === 0) {
+      lines.push("        Args: Record<PropertyKey, never>;");
+    } else {
+      lines.push("        Args: {");
+      for (const a of args) {
+        lines.push(`          ${a.name}${a.optional ? "?" : ""}: ${a.ts};`);
+      }
+      lines.push("        };");
+    }
+    lines.push(`        Returns: ${pgArgToTs((fn.returns ?? "void").toLowerCase())};`);
+    lines.push("      };");
+  }
+  lines.push("    };");
+}
 lines.push("    Enums: {");
 for (const e of enums) {
   lines.push(`      ${e.name}: ${e.labels.map((l) => `"${l}"`).join(" | ")};`);

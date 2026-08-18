@@ -1050,7 +1050,14 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      activate_schedule_run: {
+        Args: {
+          p_run_id: string;
+        };
+        Returns: undefined;
+      };
+    };
     Enums: {
       assessment_kind: "ia_draft" | "ia_final" | "ee_draft" | "ee_final" | "tok_essay" | "tok_exhibition" | "cas_reflection" | "mock" | "paper" | "oral" | "test" | "other";
       calendar_provider: "local" | "google" | "notion";
