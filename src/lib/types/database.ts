@@ -351,6 +351,62 @@ export type Database = {
           },
         ];
       };
+      integration_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          provider: Database["public"]["Enums"]["calendar_provider"];
+          provider_user_id: string | null;
+          provider_email: string | null;
+          access_token: string | null;
+          refresh_token: string | null;
+          token_expires_at: string | null;
+          scopes: string[];
+          needs_reauth: boolean;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          provider: Database["public"]["Enums"]["calendar_provider"];
+          provider_user_id?: string | null;
+          provider_email?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          scopes?: string[];
+          needs_reauth?: boolean;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          provider?: Database["public"]["Enums"]["calendar_provider"];
+          provider_user_id?: string | null;
+          provider_email?: string | null;
+          access_token?: string | null;
+          refresh_token?: string | null;
+          token_expires_at?: string | null;
+          scopes?: string[];
+          needs_reauth?: boolean;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integration_accounts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       momentum_snapshots: {
         Row: {
           user_id: string;
@@ -660,6 +716,7 @@ export type Database = {
           remote_etag: string | null;
           content_hash: string | null;
           last_synced_at: string;
+          deleted_locally: boolean;
         };
         Insert: {
           id?: string;
@@ -671,6 +728,7 @@ export type Database = {
           remote_etag?: string | null;
           content_hash?: string | null;
           last_synced_at?: string;
+          deleted_locally?: boolean;
         };
         Update: {
           id?: string;
@@ -682,6 +740,7 @@ export type Database = {
           remote_etag?: string | null;
           content_hash?: string | null;
           last_synced_at?: string;
+          deleted_locally?: boolean;
         };
         Relationships: [
           {
@@ -705,6 +764,8 @@ export type Database = {
           last_full_sync_at: string | null;
           last_error: string | null;
           updated_at: string;
+          sync_in_progress: boolean;
+          consecutive_failures: number;
         };
         Insert: {
           user_id: string;
@@ -717,6 +778,8 @@ export type Database = {
           last_full_sync_at?: string | null;
           last_error?: string | null;
           updated_at?: string;
+          sync_in_progress?: boolean;
+          consecutive_failures?: number;
         };
         Update: {
           user_id?: string;
@@ -729,6 +792,8 @@ export type Database = {
           last_full_sync_at?: string | null;
           last_error?: string | null;
           updated_at?: string;
+          sync_in_progress?: boolean;
+          consecutive_failures?: number;
         };
         Relationships: [
           {
