@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/lib/data/queries";
+import { CommandPalette } from "@/components/CommandPalette";
 
 const NAV = [
   { href: "/calendar", label: "Calendar" },
   { href: "/tasks", label: "Tasks" },
+  { href: "/focus", label: "Focus" },
   { href: "/review", label: "Review" },
 ];
 
@@ -36,12 +38,16 @@ export default async function AppLayout({
               </Link>
             ))}
           </nav>
-          <div className="ml-auto text-sm text-subtle">
-            {ctx.displayName || ctx.timezone}
+          <div className="ml-auto flex items-center gap-3 text-sm text-subtle">
+            <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline">
+              ⌘ Space
+            </kbd>
+            <span>{ctx.displayName || ctx.timezone}</span>
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-5 py-6">{children}</main>
+      <CommandPalette />
     </div>
   );
 }

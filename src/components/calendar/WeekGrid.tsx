@@ -32,6 +32,7 @@ export function WeekGrid({
   timezone,
   dayStartMin,
   dayEndMin,
+  nowMin,
   onSelect,
 }: {
   /** Epoch minute of local midnight on the first rendered day. */
@@ -40,6 +41,9 @@ export function WeekGrid({
   timezone: string;
   dayStartMin: number;
   dayEndMin: number;
+  /** Passed in rather than read here: reading the clock during render is
+   *  impure, so the "today" highlight could shift on an unrelated re-render. */
+  nowMin: EpochMinute;
   onSelect?: (item: CalendarItem) => void;
 }) {
   // Render an hour beyond the working window on each side so events that spill
@@ -94,7 +98,7 @@ export function WeekGrid({
     return map;
   }, [days, items, timezone, windowStart, visibleMinutes]);
 
-  const todayKey = startOfLocalDay(Math.floor(Date.now() / 60_000), timezone);
+  const todayKey = startOfLocalDay(nowMin, timezone);
 
   return (
     <div className="overflow-x-auto">

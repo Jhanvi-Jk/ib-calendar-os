@@ -192,6 +192,20 @@ begin
     (select remaining_min = 0 and completed_at is not null from tasks where id = t_final),
     'completing a task zeroes remaining_min and stamps completed_at');
 
+  -- ===== context hydration ================================================
+  perform assert_rejects(format(
+    $q$update tasks set context_uri = 'javascript:alert(1)' where id = %L$q$, t_draft),
+    'a javascript: context URI is rejected before it can reach an href');
+
+  perform assert_rejects(format(
+    $q$update tasks set context_uri = 'data:text/html,<script>x</script>' where id = %L$q$, t_draft),
+    'a data: context URI is rejected');
+
+  update tasks set context_uri = 'obsidian://open?file=Physics%20IA' where id = t_draft;
+  perform assert_true(
+    (select context_uri is not null from tasks where id = t_draft),
+    'an obsidian:// context URI is accepted');
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

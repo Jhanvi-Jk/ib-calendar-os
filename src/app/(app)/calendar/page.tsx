@@ -14,6 +14,7 @@ import {
   fromEpochMinute,
   localParts,
   startOfLocalDay,
+  toEpochMinute,
 } from "@/lib/time";
 import type { ConstraintTier } from "@/lib/domain/types";
 
@@ -30,7 +31,9 @@ export default async function CalendarPage({
   if (!ctx) return null;
   const { timezone, settings } = ctx;
 
-  const nowMin = Math.floor(Date.now() / 60_000);
+  // Server component: rendered once per request, so reading the clock here
+  // is correct. Uses the shared helper for consistency with the rest of the app.
+  const nowMin = toEpochMinute(new Date());
   const today = startOfLocalDay(nowMin, timezone);
   // Weeks start on Sunday, matching energy_profile.dow.
   const thisWeekStart = addLocalDays(today, -localParts(today, timezone).dow, timezone);
@@ -120,6 +123,7 @@ export default async function CalendarPage({
             timezone={timezone}
             dayStartMin={settings.dayStartMin}
             dayEndMin={settings.dayEndMin}
+            nowMin={nowMin}
           />
         </div>
       )}

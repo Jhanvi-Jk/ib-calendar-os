@@ -877,6 +877,8 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           updated_at: string;
+          context_uri: string | null;
+          context_label: string | null;
         };
         Insert: {
           id?: string;
@@ -900,6 +902,8 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          context_uri?: string | null;
+          context_label?: string | null;
         };
         Update: {
           id?: string;
@@ -923,6 +927,8 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          context_uri?: string | null;
+          context_label?: string | null;
         };
         Relationships: [
           {
@@ -1072,6 +1078,8 @@ export type Database = {
           planning_horizon_days: number;
           created_at: string;
           updated_at: string;
+          focus_hides_navigation: boolean;
+          focus_autostart_timer: boolean;
         };
         Insert: {
           user_id: string;
@@ -1087,6 +1095,8 @@ export type Database = {
           planning_horizon_days?: number;
           created_at?: string;
           updated_at?: string;
+          focus_hides_navigation?: boolean;
+          focus_autostart_timer?: boolean;
         };
         Update: {
           user_id?: string;
@@ -1102,6 +1112,8 @@ export type Database = {
           planning_horizon_days?: number;
           created_at?: string;
           updated_at?: string;
+          focus_hides_navigation?: boolean;
+          focus_autostart_timer?: boolean;
         };
         Relationships: [
           {

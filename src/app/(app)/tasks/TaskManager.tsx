@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { createTask, deleteTask, setTaskStatus } from "./actions";
+import { startTimer, stopTimer } from "@/app/(app)/actions";
+import { SyllabusImport } from "./SyllabusImport";
 import { Button, Card, Chip, EmptyState, Input, Label, Select } from "@/components/ui";
 import { cn, COGNITIVE_LOAD_LABELS } from "@/lib/utils";
 import { formatDuration } from "@/lib/time";
@@ -11,10 +13,15 @@ export function TaskManager({
   tasks,
   subjects,
   timezone,
+  runningTaskId,
+  nowMin,
 }: {
   tasks: SchedulableTask[];
   subjects: Subject[];
   timezone: string;
+  runningTaskId: string | null;
+  /** Supplied by the server: reading the clock during render is impure. */
+  nowMin: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -60,13 +67,12 @@ export function TaskManager({
     <div>
       <div className="mb-4 flex items-center">
         <h1 className="text-lg font-semibold tracking-tight">Tasks</h1>
-        <Button
-          variant="primary"
-          className="ml-auto"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? "Cancel" : "New task"}
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <SyllabusImport />
+          <Button variant="primary" onClick={() => setOpen((v) => !v)}>
+            {open ? "Cancel" : "New task"}
+          </Button>
+        </div>
       </div>
 
       {open && (
@@ -176,7 +182,7 @@ export function TaskManager({
                     <Chip
                       className={cn(
                         "bg-surface-sunken",
-                        t.deadlineAt < Math.floor(Date.now() / 60_000) && "bg-danger-soft text-danger",
+                        t.deadlineAt < nowMin && "bg-danger-soft text-danger",
                       )}
                     >
                       due {dateFmt.format(new Date(t.deadlineAt * 60_000))}
@@ -184,6 +190,18 @@ export function TaskManager({
                   )}
                 </div>
               </div>
+              <Button
+                size="sm"
+                variant={runningTaskId === t.id ? "primary" : "secondary"}
+                onClick={() =>
+                  startTransition(async () => {
+                    if (runningTaskId === t.id) await stopTimer();
+                    else await startTimer(t.id);
+                  })
+                }
+              >
+                {runningTaskId === t.id ? "Stop" : "Start"}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

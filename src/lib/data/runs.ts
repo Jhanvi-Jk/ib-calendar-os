@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fromEpochMinute } from "@/lib/time";
 import { hashSnapshot } from "@/lib/scheduling/hash";
 import type { Json } from "@/lib/types/database";
-import type { PlacedBlock, SolveResult, SolverSnapshot } from "@/lib/domain/types";
+import type { SolveResult, SolverSnapshot } from "@/lib/domain/types";
 
 /**
  * Persistence for solver output.
