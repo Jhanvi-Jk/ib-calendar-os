@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IB Calendar OS
 
-## Getting Started
+An AI-assisted planning system for IB Diploma students. The calendar is the
+canvas; the product is the constraint solver behind it.
 
-First, run the development server:
+## Current status
+
+Roadmap steps 1–2 of 20 are complete: the schema foundation and its guardrails.
+There is no UI yet.
+
+- ✅ Next.js 16 (App Router) + TypeScript + Tailwind v4
+- ✅ Supabase clients (browser / request-scoped / service-role) and `proxy.ts` auth
+- ✅ Migrations 001–003 — 20 tables, RLS on every one, verified against real Postgres
+- ✅ 25-assertion guardrail suite (`npm run db:test`)
+- ⬜ Onboarding, calendar canvas, task manager
+- ⬜ The scheduling engine
+
+## Design in one paragraph
+
+`events` are fixed in time. `tasks` have a duration and a deadline but no
+position. `scheduled_blocks` are the solver's output and the join between the
+two. Solver output is *versioned* into `schedule_runs` rather than mutated in
+place, which means "Reset Day", "what-if branching" and "undo" are one
+mechanism rather than three features. A DAG over tasks propagates effective
+deadlines backward from dependents. Sleep, exams and classes are Tier 1 and are
+protected by a Postgres exclusion constraint, not by application politeness.
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in Supabase URL + keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apply the migrations to your Supabase project in filename order (SQL editor, or
+`supabase db push` once linked). Do **not** apply anything from `supabase/tests/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing the schema
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+No Docker needed — requires `brew install postgresql@16`:
 
-## Learn More
+```bash
+npm run db:test
+```
 
-To learn more about Next.js, take a look at the following resources:
+Builds a throwaway cluster, applies every migration from scratch, and asserts
+the invariants the solver depends on: Tier 1 events cannot overlap, dependency
+cycles are rejected at write time, only one schedule run can be active, blocks
+cannot collide within a run (but may across runs, which is what makes what-if
+branching work), and closing a timer correctly decrements the task.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+supabase/migrations/   schema, applied in filename order
+supabase/tests/        local auth shim + guardrail assertions
+src/lib/domain/        the DB ↔ solver contract
+src/lib/supabase/      client factories
+src/proxy.ts           session refresh + route protection (NOT middleware.ts — Next 16)
+scripts/db-test.sh     throwaway-cluster test runner
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `AGENTS.md` for the architecture rules and the Next 16 version traps.

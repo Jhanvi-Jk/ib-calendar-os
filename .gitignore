@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local throwaway postgres cluster (scripts/db-test.sh)
+.tmp/
