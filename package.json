@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:test": "./scripts/db-test.sh"
+    "db:test": "./scripts/db-test.sh",
+    "db:types": "./scripts/db-types.sh"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

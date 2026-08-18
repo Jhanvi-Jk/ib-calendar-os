@@ -5,12 +5,12 @@ canvas; the product is the constraint solver behind it.
 
 ## Current status
 
-Roadmap steps 1–2 of 20 are complete: the schema foundation and its guardrails.
+Roadmap steps 1–7 of 20 are complete.
 There is no UI yet.
 
 - ✅ Next.js 16 (App Router) + TypeScript + Tailwind v4
 - ✅ Supabase clients (browser / request-scoped / service-role) and `proxy.ts` auth
-- ✅ Migrations 001–003 — 20 tables, RLS on every one, verified against real Postgres
+- ✅ Migrations 001–003 — 19 tables, RLS on every one, verified against real Postgres
 - ✅ 25-assertion guardrail suite (`npm run db:test`)
 - ⬜ Onboarding, calendar canvas, task manager
 - ⬜ The scheduling engine

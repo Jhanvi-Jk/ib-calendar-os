@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { Database } from "@/lib/types/database";
 
 /**
  * Request-scoped client. Carries the user's session, so every query runs
@@ -9,7 +10,7 @@ import { cookies } from "next/headers";
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -47,7 +48,7 @@ export function createServiceClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+  return createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     cookies: { getAll: () => [], setAll: () => {} },
   });
 }

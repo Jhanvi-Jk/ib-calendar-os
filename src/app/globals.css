@@ -1,26 +1,197 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   Semantic color system.
+
+   Rule: no component ever names a raw color. The solver marks a block by
+   MEANING ("this is immutable", "this is recovery work") and the active theme
+   decides pixels. That is what makes the Pinterest theme engine a data change
+   rather than a refactor.
+   ========================================================================== */
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* --- surface ------------------------------------------------------- */
+  --bg: oklch(99% 0.004 265);
+  --surface: oklch(100% 0 0);
+  --surface-sunken: oklch(97% 0.005 265);
+  --surface-raised: oklch(100% 0 0);
+  --border: oklch(91% 0.006 265);
+  --border-strong: oklch(84% 0.01 265);
+
+  /* --- text ---------------------------------------------------------- */
+  --text: oklch(23% 0.015 265);
+  --text-muted: oklch(52% 0.014 265);
+  --text-subtle: oklch(66% 0.012 265);
+  --text-inverse: oklch(99% 0 0);
+
+  /* --- brand --------------------------------------------------------- */
+  --primary: oklch(58% 0.17 275);
+  --primary-hover: oklch(52% 0.18 275);
+  --primary-soft: oklch(95% 0.03 275);
+  --focus-ring: oklch(58% 0.17 275 / 0.45);
+
+  /* --- constraint tiers ----------------------------------------------
+     The visual language of the whole product. Tier 1 must read as "wall",
+     tier 5 as "soft". Saturation deliberately decreases as tier rises.     */
+  --tier-1: oklch(48% 0.16 25); /* immutable — exams, sleep, class */
+  --tier-1-soft: oklch(94% 0.035 25);
+  --tier-2: oklch(58% 0.14 55); /* committed */
+  --tier-2-soft: oklch(95% 0.04 55);
+  --tier-3: oklch(58% 0.13 250); /* planned study — the movable bulk */
+  --tier-3-soft: oklch(95% 0.03 250);
+  --tier-4: oklch(62% 0.09 175); /* elastic — habits, review */
+  --tier-4-soft: oklch(95% 0.03 175);
+  --tier-5: oklch(65% 0.05 300); /* recovery — never shame-colored */
+  --tier-5-soft: oklch(96% 0.02 300);
+
+  /* --- momentum states (never red-for-failure) ------------------------ */
+  --momentum-thriving: oklch(65% 0.14 155);
+  --momentum-steady: oklch(62% 0.11 220);
+  --momentum-strained: oklch(70% 0.12 75);
+  --momentum-recovering: oklch(66% 0.08 300);
+
+  /* --- feedback ------------------------------------------------------- */
+  --danger: oklch(55% 0.19 25);
+  --danger-soft: oklch(95% 0.04 25);
+  --warning: oklch(70% 0.14 75);
+  --success: oklch(60% 0.14 155);
+
+  /* --- calendar geometry ---------------------------------------------- */
+  --hour-height: 3.5rem;
+  --radius: 0.625rem;
+}
+
+/* Themes are applied by setting data-theme on <html>. Each one only needs to
+   override the variables it cares about — everything else inherits. */
+[data-theme="dusk"] {
+  --bg: oklch(21% 0.02 275);
+  --surface: oklch(25% 0.022 275);
+  --surface-sunken: oklch(18% 0.02 275);
+  --surface-raised: oklch(29% 0.024 275);
+  --border: oklch(33% 0.02 275);
+  --border-strong: oklch(42% 0.025 275);
+  --text: oklch(95% 0.008 275);
+  --text-muted: oklch(74% 0.014 275);
+  --text-subtle: oklch(58% 0.014 275);
+  --text-inverse: oklch(20% 0.02 275);
+  --primary: oklch(72% 0.14 280);
+  --primary-hover: oklch(78% 0.14 280);
+  --primary-soft: oklch(32% 0.06 280);
+  --tier-1: oklch(66% 0.16 25);
+  --tier-1-soft: oklch(32% 0.07 25);
+  --tier-2: oklch(72% 0.13 60);
+  --tier-2-soft: oklch(32% 0.06 60);
+  --tier-3: oklch(70% 0.12 250);
+  --tier-3-soft: oklch(31% 0.06 250);
+  --tier-4: oklch(72% 0.09 175);
+  --tier-4-soft: oklch(30% 0.05 175);
+  --tier-5: oklch(72% 0.05 300);
+  --tier-5-soft: oklch(30% 0.03 300);
+}
+
+[data-theme="sepia"] {
+  --bg: oklch(96% 0.018 85);
+  --surface: oklch(98% 0.012 85);
+  --surface-sunken: oklch(93% 0.022 85);
+  --border: oklch(87% 0.025 85);
+  --text: oklch(28% 0.03 55);
+  --text-muted: oklch(50% 0.03 55);
+  --primary: oklch(52% 0.12 45);
+  --primary-soft: oklch(92% 0.04 60);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme]) {
+    --bg: oklch(21% 0.02 275);
+    --surface: oklch(25% 0.022 275);
+    --surface-sunken: oklch(18% 0.02 275);
+    --surface-raised: oklch(29% 0.024 275);
+    --border: oklch(33% 0.02 275);
+    --border-strong: oklch(42% 0.025 275);
+    --text: oklch(95% 0.008 275);
+    --text-muted: oklch(74% 0.014 275);
+    --text-subtle: oklch(58% 0.014 275);
+    --text-inverse: oklch(20% 0.02 275);
+    --primary: oklch(72% 0.14 280);
+    --primary-hover: oklch(78% 0.14 280);
+    --primary-soft: oklch(32% 0.06 280);
+    --tier-1: oklch(66% 0.16 25);
+    --tier-1-soft: oklch(32% 0.07 25);
+    --tier-2: oklch(72% 0.13 60);
+    --tier-2-soft: oklch(32% 0.06 60);
+    --tier-3: oklch(70% 0.12 250);
+    --tier-3-soft: oklch(31% 0.06 250);
+    --tier-4: oklch(72% 0.09 175);
+    --tier-4-soft: oklch(30% 0.05 175);
+    --tier-5: oklch(72% 0.05 300);
+    --tier-5-soft: oklch(30% 0.03 300);
   }
 }
 
+/* Expose the semantic tokens to Tailwind utilities: bg-surface, text-muted,
+   border-border, text-tier-1 … */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-inverse: var(--text-inverse);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-tier-1: var(--tier-1);
+  --color-tier-1-soft: var(--tier-1-soft);
+  --color-tier-2: var(--tier-2);
+  --color-tier-2-soft: var(--tier-2-soft);
+  --color-tier-3: var(--tier-3);
+  --color-tier-3-soft: var(--tier-3-soft);
+  --color-tier-4: var(--tier-4);
+  --color-tier-4-soft: var(--tier-4-soft);
+  --color-tier-5: var(--tier-5);
+  --color-tier-5-soft: var(--tier-5-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-thriving: var(--momentum-thriving);
+  --color-steady: var(--momentum-steady);
+  --color-strained: var(--momentum-strained);
+  --color-recovering: var(--momentum-recovering);
+  --radius-app: var(--radius);
+}
+
+* {
+  border-color: var(--border);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Respect users who ask for less motion — this app is used under stress. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
