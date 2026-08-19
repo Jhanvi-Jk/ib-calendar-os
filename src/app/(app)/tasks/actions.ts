@@ -120,19 +120,75 @@ export async function createSubject(raw: unknown) {
 
   // The DB enforces that CORE subjects carry no IB group; mirror that here so
   // the user gets a clean form rather than a constraint violation.
+  // Trailing whitespace produces subjects that look identical but sort and
+  // compare differently — "Maths AA " and "Maths AA " are not the same row.
+  const name = s.name.trim();
+
   const { error } = await supabase.from("subjects").insert({
     user_id: user.id,
-    name: s.name,
+    name,
     level: s.level,
     ib_group: s.level === "CORE" ? null : (s.ibGroup ?? 1),
     color_token: "neutral",
   });
   if (error) {
+    // The uniqueness constraint is on the NAME alone, not name+level. The
+    // dropdown renders "Physics (HL)" by appending the level, so the stored
+    // name looks different from what is displayed — quote it back exactly,
+    // otherwise the error reads as false.
     return {
       ok: false as const,
-      error: error.code === "23505" ? "You already have a subject with that name." : error.message,
+      error:
+        error.code === "23505"
+          ? `You already have a subject called "${name}". Levels aren't part of the name, so you can't have two.`
+          : error.message,
     };
   }
+
+  revalidatePath("/tasks");
+  revalidatePath("/calendar");
+  return { ok: true as const };
+}
+
+const TaskUpdate = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  subjectId: z.string().uuid().nullable().optional(),
+  estimateMin: z.number().int().min(5).max(2400),
+  deadlineAt: z.string().nullable().optional(),
+  cognitiveLoad: z.number().int().min(1).max(5),
+});
+
+/**
+ * Edit an existing task. Previously the only way to correct a typo or move a
+ * deadline was to delete and re-create, which threw away tracked time.
+ */
+export async function updateTask(raw: unknown) {
+  const parsed = TaskUpdate.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid task" };
+  }
+  const t = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: "Not signed in." };
+
+  // remaining_min is deliberately not touched: it is owned by the time-entry
+  // trigger, and recomputing it here would discard tracked work.
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      title: t.title,
+      subject_id: t.subjectId || null,
+      estimate_min: t.estimateMin,
+      deadline_at: t.deadlineAt ? new Date(t.deadlineAt).toISOString() : null,
+      cognitive_load: t.cognitiveLoad,
+    })
+    .eq("id", t.id);
+  if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/tasks");
   revalidatePath("/calendar");

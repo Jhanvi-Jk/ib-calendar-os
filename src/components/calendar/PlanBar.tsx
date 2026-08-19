@@ -15,12 +15,16 @@ const REASON_COPY: Record<Infeasibility["reason"], string> = {
 
 export function PlanBar({
   infeasibility,
-  stats,
+  weekScheduledMin,
+  horizonScheduledMin,
   taskTitles,
   hasPlan,
 }: {
   infeasibility: Infeasibility[];
-  stats: { totalScheduledMin?: number; capacityUtilisation?: number; tasksPlaced?: number };
+  /** Minutes scheduled in the week currently on screen. */
+  weekScheduledMin: number;
+  /** Minutes scheduled across the whole planning horizon. */
+  horizonScheduledMin: number;
   taskTitles: Record<string, string>;
   hasPlan: boolean;
 }) {
@@ -50,24 +54,22 @@ export function PlanBar({
           </Button>
         )}
 
-        {hasPlan && stats.totalScheduledMin !== undefined && (
+        {/*
+          Every figure here is derived from the same blocks the grid renders,
+          so the header can no longer disagree with the body. When the visible
+          week is empty but the plan is not, say so explicitly rather than
+          quoting a horizon-wide total that looks like a contradiction.
+        */}
+        {hasPlan && (
           <div className="ml-auto flex items-center gap-3 text-sm text-muted">
-            <span>{formatDuration(stats.totalScheduledMin)} scheduled</span>
-            {stats.capacityUtilisation !== undefined && (
-              <Chip
-                className={
-                  stats.capacityUtilisation > 0.85
-                    ? "bg-danger-soft text-danger"
-                    : "bg-surface-sunken"
-                }
-                title="Share of your free time across the whole planning horizon, not just this week"
-              >
-                {/*
-                  Utilisation is measured over the full horizon (~3 weeks), so a
-                  single hour is genuinely a fraction of a percent. Rounding that
-                  to "0%" read as broken, so anything non-zero floors at "<1%".
-                */}
-                {formatUtilisation(stats.capacityUtilisation)} of free time
+            {weekScheduledMin > 0 ? (
+              <span>{formatDuration(weekScheduledMin)} scheduled this week</span>
+            ) : (
+              <span>Nothing scheduled this week</span>
+            )}
+            {horizonScheduledMin > weekScheduledMin && (
+              <Chip className="bg-surface-sunken">
+                {formatDuration(horizonScheduledMin - weekScheduledMin)} in other weeks
               </Chip>
             )}
           </div>
@@ -125,9 +127,3 @@ export function PlanBar({
   );
 }
 
-/** Never renders a non-zero utilisation as "0%". */
-function formatUtilisation(ratio: number): string {
-  if (ratio <= 0) return "0%";
-  if (ratio < 0.01) return "<1%";
-  return `${Math.round(ratio * 100)}%`;
-}

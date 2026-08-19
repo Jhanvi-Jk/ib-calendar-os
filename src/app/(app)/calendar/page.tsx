@@ -51,6 +51,22 @@ export default async function CalendarPage({
 
   const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
 
+  // The header stats and the empty state must be derived from the SAME blocks,
+  // or they contradict each other: the solver's stats cover the whole ~21-day
+  // horizon, so a plan with everything scheduled next week reported
+  // "1h scheduled" above a body saying "Nothing scheduled this week".
+  const blocksThisWeek = (run?.blocks ?? []).filter(
+    (b) => b.startsAt < weekEnd && b.endsAt > weekStart,
+  );
+  const weekScheduledMin = blocksThisWeek.reduce(
+    (sum, b) => sum + (b.endsAt - b.startsAt),
+    0,
+  );
+  const horizonScheduledMin = (run?.blocks ?? []).reduce(
+    (sum, b) => sum + (b.endsAt - b.startsAt),
+    0,
+  );
+
   const items: CalendarItem[] = [
     ...events.map((e) => ({
       id: e.id,
@@ -61,17 +77,15 @@ export default async function CalendarPage({
       tier: e.tier,
       isLocked: e.isLocked,
     })),
-    ...(run?.blocks ?? [])
-      .filter((b) => b.startsAt < weekEnd && b.endsAt > weekStart)
-      .map((b) => ({
-        id: b.id,
-        title: b.taskTitle,
-        startsAt: b.startsAt,
-        endsAt: b.endsAt,
-        variant: "block" as const,
-        tier: 3 as ConstraintTier,
-        isLocked: b.isLocked,
-      })),
+    ...blocksThisWeek.map((b) => ({
+      id: b.id,
+      title: b.taskTitle,
+      startsAt: b.startsAt,
+      endsAt: b.endsAt,
+      variant: "block" as const,
+      tier: 3 as ConstraintTier,
+      isLocked: b.isLocked,
+    })),
   ];
 
   const label = `${localParts(weekStart, timezone).day} – ${
@@ -106,7 +120,8 @@ export default async function CalendarPage({
 
       <PlanBar
         infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}
-        stats={run?.stats ?? {}}
+        weekScheduledMin={weekScheduledMin}
+        horizonScheduledMin={horizonScheduledMin}
         taskTitles={taskTitles}
         hasPlan={Boolean(run)}
       />

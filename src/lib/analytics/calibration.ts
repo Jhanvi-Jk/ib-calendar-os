@@ -105,7 +105,18 @@ export interface AccuracyReport {
   overestimated: number;
   medianRatio: number;
   headline: string;
+  /**
+   * True once there are enough finished tasks to say something about the
+   * user's estimating rather than about one task.
+   *
+   * A single sample was producing confident claims like "You finish faster
+   * than you expect", which is a statement about a habit drawn from n=1.
+   */
+  hasEnoughData: boolean;
 }
+
+/** Below this, report counts but draw no conclusions. */
+export const MIN_SAMPLES_FOR_NARRATIVE = 5;
 
 export function accuracyReport(samples: CompletedSample[]): AccuracyReport {
   const usable = samples.filter((s) => s.estimateMin > 0 && s.actualMin > 0);
@@ -117,6 +128,7 @@ export function accuracyReport(samples: CompletedSample[]): AccuracyReport {
       overestimated: 0,
       medianRatio: 1,
       headline: "Track some work to see how your estimates hold up.",
+      hasEnoughData: false,
     };
   }
 
@@ -131,6 +143,7 @@ export function accuracyReport(samples: CompletedSample[]): AccuracyReport {
   }
 
   const median = calibrate(usable).ratioP50;
+  const hasEnoughData = usable.length >= MIN_SAMPLES_FOR_NARRATIVE;
 
   return {
     totalTasks: usable.length,
@@ -138,7 +151,10 @@ export function accuracyReport(samples: CompletedSample[]): AccuracyReport {
     underestimated: under,
     overestimated: over,
     medianRatio: median,
-    headline: headlineFor(median, onTarget / usable.length),
+    headline: hasEnoughData
+      ? headlineFor(median, onTarget / usable.length)
+      : `${usable.length} finished ${usable.length === 1 ? "task" : "tasks"} so far — not enough to judge your estimating yet.`,
+    hasEnoughData,
   };
 }
 

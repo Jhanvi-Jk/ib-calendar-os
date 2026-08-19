@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { stopTimer } from "@/app/(app)/actions";
 import { Button } from "@/components/ui";
 
@@ -20,7 +21,8 @@ export function RunningTimerBar({
   startedAt: string;
 }) {
   const [elapsedMin, setElapsedMin] = useState(() => minutesSince(startedAt));
-  const [stopping, setStopping] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     const id = setInterval(() => setElapsedMin(minutesSince(startedAt)), 15_000);
@@ -54,18 +56,25 @@ export function RunningTimerBar({
           </span>
         )}
 
+        {/*
+          Must run inside a transition and refresh the router. Awaiting the
+          action alone updates the database but leaves every server-rendered
+          surface — this bar, the task row — showing the old state until a
+          manual reload, so the two controls appeared to disagree.
+        */}
         <Button
           size="sm"
           variant="secondary"
           className="ml-auto"
-          disabled={stopping}
-          onClick={async () => {
-            setStopping(true);
-            await stopTimer();
-            setStopping(false);
-          }}
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              await stopTimer();
+              router.refresh();
+            })
+          }
         >
-          {stopping ? "Stopping…" : "Stop"}
+          {pending ? "Stopping…" : "Stop"}
         </Button>
       </div>
     </div>

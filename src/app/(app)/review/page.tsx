@@ -101,7 +101,12 @@ export default async function ReviewPage() {
         <p className="font-medium">Estimate accuracy</p>
         <Hint className="mt-0.5">{accuracy.headline}</Hint>
 
-        {accuracy.totalTasks > 0 && (
+        {/*
+          The breakdown is only shown alongside a conclusion once there is
+          enough to draw one from — otherwise "1 Finished early" reads as a
+          verdict on the user's estimating rather than a single data point.
+        */}
+        {accuracy.hasEnoughData && (
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <Stat label="On target" value={accuracy.onTarget} />
             <Stat label="Took longer" value={accuracy.underestimated} />

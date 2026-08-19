@@ -204,3 +204,31 @@ describe("calibration", () => {
     expect(accuracyReport([]).totalTasks).toBe(0);
   });
 });
+
+describe("estimate accuracy narrative", () => {
+  const sample = (estimateMin: number, actualMin: number) => ({
+    estimateMin,
+    actualMin,
+    subjectId: null,
+    cognitiveLoad: 3 as const,
+  });
+
+  it("draws no conclusion from a single finished task", () => {
+    // Regression: one task that ran short produced the confident claim
+    // "You finish faster than you expect" — a habit inferred from n=1.
+    const report = accuracyReport([sample(60, 26)]);
+
+    expect(report.totalTasks).toBe(1);
+    expect(report.hasEnoughData).toBe(false);
+    expect(report.headline).not.toMatch(/finish faster/i);
+    expect(report.headline).toMatch(/not enough/i);
+  });
+
+  it("draws a conclusion once there are enough samples", () => {
+    const report = accuracyReport(Array.from({ length: 5 }, () => sample(60, 30)));
+
+    expect(report.hasEnoughData).toBe(true);
+    expect(report.overestimated).toBe(5);
+    expect(report.headline).toMatch(/faster/i);
+  });
+});
