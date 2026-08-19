@@ -88,3 +88,36 @@ If a file under `scheduling/` or `analytics/` grows an import from `data/` or
 "today" highlight and overdue badges would drift on unrelated re-renders. Pass
 the current time in from a server component (see `nowMin` on `WeekGrid` and
 `TaskManager`).
+
+## Accessibility bar
+
+Adapted from the UX guideline set in
+[ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+(MIT), filtered to the Critical/High web rules that apply to this app. These
+are requirements, not aspirations — a planner used under exam stress is
+exactly the context where low contrast and 16px hit targets fail people.
+
+1. **Contrast** — body text ≥ 4.5:1 against its *effective* background, large
+   text ≥ 3:1. Measure the rendered colour, don't eyeball the token: the
+   browser returns `oklch()`/`lab()`, so naive RGB parsing silently produces
+   nonsense ratios.
+2. **Target size** — every interactive element ≥ 24×24 CSS px (WCAG 2.2 AA
+   2.5.8). Checkboxes and icon-only buttons are the usual offenders.
+3. **Never colour alone** — tier is carried by a label or icon as well as a
+   hue. Roughly 1 in 12 men has a colour-vision deficiency, and Tier 1 vs
+   Tier 3 is a safety-relevant distinction here.
+4. **Reduced motion** — respect `prefers-reduced-motion`, but do not let a
+   blanket freeze kill motion that *communicates*. Anything that is the only
+   signal for a state change needs a non-motion fallback; see
+   `.motion-safe-pulse` in `globals.css`.
+5. **Inline errors** — each invalid field gets its own message, adjacent to
+   the input and wired with `aria-describedby`. A single error at the bottom
+   of a form does not identify what to fix.
+6. **No essential truncation** — headings, actions, errors and distinguishing
+   names must be reachable in full. Truncating a task title for a tidy grid is
+   only acceptable when the full text is available elsewhere (tooltip, detail).
+7. **Compact controls are real controls** — a chip or icon button needs a
+   native role, an accessible name, keyboard operation and visible focus.
+   Never a clickable `div`, never hover-only affordances.
+
+Re-run the audit after UI work by measuring in a browser, not by reading CSS.

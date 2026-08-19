@@ -26,7 +26,9 @@
   /* --- text ---------------------------------------------------------- */
   --text: oklch(23% 0.015 265);
   --text-muted: oklch(52% 0.014 265);
-  --text-subtle: oklch(66% 0.012 265);
+  /* 55%, not 66%: at 66% this measured 4.1:1 against --surface,
+     under the 4.5:1 WCAG AA minimum for body text. */
+  --text-subtle: oklch(55% 0.014 265);
   --text-inverse: oklch(99% 0 0);
 
   /* --- brand --------------------------------------------------------- */
@@ -77,7 +79,7 @@
   --border-strong: oklch(42% 0.025 275);
   --text: oklch(95% 0.008 275);
   --text-muted: oklch(74% 0.014 275);
-  --text-subtle: oklch(58% 0.014 275);
+  --text-subtle: oklch(68% 0.014 275); /* was 58% — measured 4.14:1, below AA */
   --text-inverse: oklch(20% 0.02 275);
   --primary: oklch(72% 0.14 280);
   --primary-hover: oklch(78% 0.14 280);
@@ -115,7 +117,7 @@
     --border-strong: oklch(42% 0.025 275);
     --text: oklch(95% 0.008 275);
     --text-muted: oklch(74% 0.014 275);
-    --text-subtle: oklch(58% 0.014 275);
+    --text-subtle: oklch(68% 0.014 275); /* was 58% — measured 4.14:1, below AA */
     --text-inverse: oklch(20% 0.02 275);
     --primary: oklch(72% 0.14 280);
     --primary-hover: oklch(78% 0.14 280);
@@ -193,5 +195,29 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /*
+   * ...but a blanket rule silently breaks anything that COMMUNICATES through
+   * motion. The week-nav spinner is the only feedback that a navigation is in
+   * flight; frozen, it is an invisible dot, which reproduces exactly the
+   * "the click did nothing" bug it was added to fix.
+   *
+   * Opt these back in: a slow pulse still reads as "working" while staying
+   * far gentler than a spin, and vestibular triggers come from movement
+   * across the screen, not from opacity.
+   */
+  .motion-safe-pulse {
+    animation: reduced-motion-pulse 1.6s ease-in-out infinite !important;
+  }
+}
+
+@keyframes reduced-motion-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
   }
 }

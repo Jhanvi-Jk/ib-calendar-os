@@ -392,7 +392,10 @@ export function TaskManager({
               <input
                 type="checkbox"
                 aria-label={`Mark ${t.title} done`}
-                className="h-4 w-4 accent-[var(--primary)]"
+                // 24px minimum pointer target (WCAG 2.2 AA 2.5.8). At the old
+                // h-4 w-4 this was a 16px hit area for the single most
+                // consequential control on the page.
+                className="h-6 w-6 shrink-0 accent-[var(--primary)]"
                 checked={false}
                 onChange={() => complete(t)}
               />

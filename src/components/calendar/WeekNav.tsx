@@ -72,9 +72,16 @@ function NavButton({ children }: { children: React.ReactNode }) {
       <span className={cn(pending && "opacity-0")}>{children}</span>
       {pending && (
         <span className="absolute inset-0 flex items-center justify-center">
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-border border-t-primary" />
+          {/* motion-safe-pulse keeps this legible under prefers-reduced-motion,
+              where the global rule freezes the spin to a static dot. */}
+          <span className="motion-safe-pulse h-3 w-3 animate-spin rounded-full border-2 border-border border-t-primary" />
         </span>
       )}
+      {/* Announced without moving focus, so screen-reader users get the same
+          "it is working" signal the spinner gives sighted users. */}
+      <span className="sr-only" role="status">
+        {pending ? "Loading week" : ""}
+      </span>
     </span>
   );
 }
