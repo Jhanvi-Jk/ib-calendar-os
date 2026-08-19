@@ -46,9 +46,13 @@ export async function importSyllabus(input: { text: string; label: string }) {
     });
   } catch (error) {
     if (error instanceof AiUnavailableError) {
+      // Log the specific cause for whoever runs the server; tell the user only
+      // that the feature is unavailable. Environment variable names are
+      // internal deployment detail and must not reach the browser.
+      console.error("[syllabus import] AI unavailable:", error.message);
       return {
         ok: false as const,
-        error: "AI import isn't configured yet (missing ANTHROPIC_API_KEY).",
+        error: "Syllabus import isn't available right now. You can still add tasks manually.",
       };
     }
     throw error;

@@ -33,29 +33,51 @@ export default async function ReviewPage() {
         and nothing that frames a rest day as a failure.
       */}
       <Card>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <Chip className={cn("text-sm", STATE_CLASS[momentum.state])}>
-            {copy.label}
-          </Chip>
-          <span className="text-2xl font-semibold tabular-nums">
-            {Math.round(momentum.ratio * 100)}%
-          </span>
-          <span className="text-sm text-muted">of your plan, last 7 days</span>
-        </div>
-        <Hint className="mt-2">{copy.detail}</Hint>
+        {/*
+          No planned work in the window means there is nothing to score. Showing
+          a ratio here would invent a number — a new user with an empty week is
+          not "Thriving at 100%".
+        */}
+        {!momentum.hasData ? (
+          <>
+            <p className="font-medium">Not enough to go on yet</p>
+            <Hint className="mt-1">
+              Momentum compares what you planned against what you did. Generate a
+              plan for the week and track some work, and this starts reporting.
+            </Hint>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-baseline gap-3">
+              <Chip className={cn("text-sm", STATE_CLASS[momentum.state])}>
+                {copy.label}
+              </Chip>
+              <span className="text-2xl font-semibold tabular-nums">
+                {Math.round(momentum.ratio * 100)}%
+              </span>
+              <span className="text-sm text-muted">of your plan, last 7 days</span>
+            </div>
+            <Hint className="mt-2">{copy.detail}</Hint>
 
-        {momentum.restDays > 0 && (
-          <Hint className="mt-1">
-            {momentum.restDays} rest {momentum.restDays === 1 ? "day" : "days"} in that
-            window — not counted against you.
-          </Hint>
-        )}
+            <Hint className="mt-1">
+              {formatDuration(momentum.completedMin)} tracked against{" "}
+              {formatDuration(momentum.plannedMin)} planned.
+            </Hint>
 
-        {recovery && (
-          <div className="mt-4 rounded-app bg-surface-sunken p-3">
-            <p className="text-sm font-medium">Recovery protocol active</p>
-            <Hint className="mt-1">{recovery.message}</Hint>
-          </div>
+            {momentum.restDays > 0 && (
+              <Hint className="mt-1">
+                {momentum.restDays} rest {momentum.restDays === 1 ? "day" : "days"} in
+                that window — not counted against you.
+              </Hint>
+            )}
+
+            {recovery && (
+              <div className="mt-4 rounded-app bg-surface-sunken p-3">
+                <p className="text-sm font-medium">Recovery protocol active</p>
+                <Hint className="mt-1">{recovery.message}</Hint>
+              </div>
+            )}
+          </>
         )}
       </Card>
 

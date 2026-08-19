@@ -5,6 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 
 /** Time tracking. The feedback loop that makes estimates true. */
 
+/**
+ * Every surface that displays remaining time or timer state. Focus and
+ * Calendar were previously missing, so stopping a timer left the Focus screen
+ * showing the pre-timer "1h left" until a manual reload.
+ */
+function revalidateTimerViews() {
+  revalidatePath("/tasks");
+  revalidatePath("/review");
+  revalidatePath("/focus");
+  revalidatePath("/calendar");
+}
+
 export async function startTimer(taskId: string) {
   const supabase = await createClient();
   const {
@@ -30,8 +42,7 @@ export async function startTimer(taskId: string) {
 
   await supabase.from("tasks").update({ status: "in_progress" }).eq("id", taskId);
 
-  revalidatePath("/tasks");
-  revalidatePath("/review");
+  revalidateTimerViews();
   return { ok: true as const };
 }
 
@@ -51,8 +62,7 @@ export async function stopTimer() {
     .is("ended_at", null);
   if (error) return { ok: false as const, error: error.message };
 
-  revalidatePath("/tasks");
-  revalidatePath("/review");
+  revalidateTimerViews();
   return { ok: true as const };
 }
 

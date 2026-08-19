@@ -60,8 +60,14 @@ export function PlanBar({
                     ? "bg-danger-soft text-danger"
                     : "bg-surface-sunken"
                 }
+                title="Share of your free time across the whole planning horizon, not just this week"
               >
-                {Math.round(stats.capacityUtilisation * 100)}% of free time
+                {/*
+                  Utilisation is measured over the full horizon (~3 weeks), so a
+                  single hour is genuinely a fraction of a percent. Rounding that
+                  to "0%" read as broken, so anything non-zero floors at "<1%".
+                */}
+                {formatUtilisation(stats.capacityUtilisation)} of free time
               </Chip>
             )}
           </div>
@@ -117,4 +123,11 @@ export function PlanBar({
       )}
     </div>
   );
+}
+
+/** Never renders a non-zero utilisation as "0%". */
+function formatUtilisation(ratio: number): string {
+  if (ratio <= 0) return "0%";
+  if (ratio < 0.01) return "<1%";
+  return `${Math.round(ratio * 100)}%`;
 }

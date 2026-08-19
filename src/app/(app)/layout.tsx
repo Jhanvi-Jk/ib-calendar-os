@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/lib/data/queries";
+import { getRunningTimer } from "@/lib/data/analytics";
+import { RunningTimerBar } from "@/components/RunningTimerBar";
 import { CommandPalette } from "@/components/CommandPalette";
 
 const NAV = [
@@ -15,7 +17,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ctx = await getUserContext();
+  const [ctx, timer] = await Promise.all([getUserContext(), getRunningTimer()]);
   // proxy.ts already blocks anonymous requests; this catches the narrower case
   // of a signed-in user who never finished onboarding.
   if (!ctx) redirect("/onboarding");
@@ -46,6 +48,11 @@ export default async function AppLayout({
           </div>
         </div>
       </header>
+      {/*
+        A timer running unnoticed silently inflates every statistic downstream.
+        It gets a persistent bar so it can never be invisible.
+      */}
+      {timer && <RunningTimerBar title={timer.title} startedAt={timer.startedAt} />}
       <main className="mx-auto max-w-7xl px-5 py-6">{children}</main>
       <CommandPalette />
     </div>

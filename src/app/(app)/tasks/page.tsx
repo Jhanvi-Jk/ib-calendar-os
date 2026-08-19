@@ -1,6 +1,7 @@
 import { TaskManager } from "./TaskManager";
 import { getOpenTasks, getSubjects, getUserContext } from "@/lib/data/queries";
 import { getRunningTimer } from "@/lib/data/analytics";
+import { isAiConfigured } from "@/lib/ai/client";
 import { toEpochMinute } from "@/lib/time";
 
 export default async function TasksPage() {
@@ -19,6 +20,7 @@ export default async function TasksPage() {
       timezone={ctx.timezone}
       runningTaskId={timer?.taskId ?? null}
       nowMin={toEpochMinute(new Date())}
+      aiEnabled={isAiConfigured()}
     />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createTask, deleteTask, setTaskStatus } from "./actions";
+import { createSubject, createTask, deleteTask, setTaskStatus } from "./actions";
 import { startTimer, stopTimer } from "@/app/(app)/actions";
 import { SyllabusImport } from "./SyllabusImport";
 import { Button, Card, Chip, EmptyState, Input, Label, Select } from "@/components/ui";
@@ -15,6 +15,7 @@ export function TaskManager({
   timezone,
   runningTaskId,
   nowMin,
+  aiEnabled,
 }: {
   tasks: SchedulableTask[];
   subjects: Subject[];
@@ -22,10 +23,34 @@ export function TaskManager({
   runningTaskId: string | null;
   /** Supplied by the server: reading the clock during render is impure. */
   nowMin: number;
+  /** False when no API key is configured — the feature is hidden, not broken. */
+  aiEnabled: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [addingSubject, setAddingSubject] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [newSubjectLevel, setNewSubjectLevel] = useState<"HL" | "SL" | "CORE">("HL");
+
+  function addSubject() {
+    const name = newSubjectName.trim();
+    if (!name) return;
+    setError("");
+    startTransition(async () => {
+      const res = await createSubject({
+        name,
+        level: newSubjectLevel,
+        ibGroup: newSubjectLevel === "CORE" ? null : 1,
+      });
+      if (!res.ok) setError(res.error);
+      else {
+        setNewSubjectName("");
+        setAddingSubject(false);
+      }
+    });
+  }
 
   const [title, setTitle] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -68,7 +93,7 @@ export function TaskManager({
       <div className="mb-4 flex items-center">
         <h1 className="text-lg font-semibold tracking-tight">Tasks</h1>
         <div className="ml-auto flex gap-2">
-          <SyllabusImport />
+          {aiEnabled && <SyllabusImport />}
           <Button variant="primary" onClick={() => setOpen((v) => !v)}>
             {open ? "Cancel" : "New task"}
           </Button>
@@ -91,19 +116,60 @@ export function TaskManager({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Select
-                  id="subject"
-                  value={subjectId}
-                  onChange={(e) => setSubjectId(e.target.value)}
-                >
-                  <option value="">None</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} {s.level !== "CORE" ? `(${s.level})` : ""}
-                    </option>
-                  ))}
-                </Select>
+                <div className="flex items-baseline justify-between">
+                  <Label htmlFor="subject">Subject</Label>
+                  <button
+                    type="button"
+                    className="mb-1.5 text-xs text-muted underline hover:text-text"
+                    onClick={() => setAddingSubject((v) => !v)}
+                  >
+                    {addingSubject ? "Cancel" : "+ Add subject"}
+                  </button>
+                </div>
+                {addingSubject ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      value={newSubjectName}
+                      placeholder="Physics"
+                      onChange={(e) => setNewSubjectName(e.target.value)}
+                      // Enter would otherwise submit the surrounding task form.
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addSubject();
+                        }
+                      }}
+                    />
+                    <Select
+                      className="w-24"
+                      value={newSubjectLevel}
+                      onChange={(e) =>
+                        setNewSubjectLevel(e.target.value as "HL" | "SL" | "CORE")
+                      }
+                    >
+                      <option value="HL">HL</option>
+                      <option value="SL">SL</option>
+                      <option value="CORE">Core</option>
+                    </Select>
+                    <Button type="button" size="sm" onClick={addSubject} disabled={pending}>
+                      Save
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    id="subject"
+                    value={subjectId}
+                    onChange={(e) => setSubjectId(e.target.value)}
+                  >
+                    <option value="">None</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.level !== "CORE" ? `(${s.level})` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                )}
               </div>
               <div>
                 <Label htmlFor="deadline">Deadline</Label>
@@ -202,17 +268,41 @@ export function TaskManager({
               >
                 {runningTaskId === t.id ? "Stop" : "Start"}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  startTransition(async () => {
-                    await deleteTask(t.id);
-                  })
-                }
-              >
-                Delete
-              </Button>
+              {/*
+                Two-step delete. A deadline tool should not lose work to a
+                single stray click, and there is no undo for a deleted task.
+              */}
+              {confirmingDelete === t.id ? (
+                <span className="flex items-center gap-1">
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() =>
+                      startTransition(async () => {
+                        await deleteTask(t.id);
+                        setConfirmingDelete(null);
+                      })
+                    }
+                  >
+                    Delete for good
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmingDelete(null)}
+                  >
+                    Cancel
+                  </Button>
+                </span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(t.id)}
+                >
+                  Delete
+                </Button>
+              )}
             </li>
           ))}
         </ul>

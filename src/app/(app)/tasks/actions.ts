@@ -94,3 +94,47 @@ export async function linkDependency(predecessorId: string, successorId: string)
   revalidatePath("/tasks");
   return { ok: true as const };
 }
+
+const SubjectInput = z.object({
+  name: z.string().min(1).max(80),
+  level: z.enum(["HL", "SL", "CORE"]),
+  ibGroup: z.number().int().min(1).max(6).nullable(),
+});
+
+/**
+ * Subjects were only creatable during onboarding, which left anyone who
+ * skipped a subject — or picked one up later — with no way to add it.
+ */
+export async function createSubject(raw: unknown) {
+  const parsed = SubjectInput.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid subject" };
+  }
+  const s = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: "Not signed in." };
+
+  // The DB enforces that CORE subjects carry no IB group; mirror that here so
+  // the user gets a clean form rather than a constraint violation.
+  const { error } = await supabase.from("subjects").insert({
+    user_id: user.id,
+    name: s.name,
+    level: s.level,
+    ib_group: s.level === "CORE" ? null : (s.ibGroup ?? 1),
+    color_token: "neutral",
+  });
+  if (error) {
+    return {
+      ok: false as const,
+      error: error.code === "23505" ? "You already have a subject with that name." : error.message,
+    };
+  }
+
+  revalidatePath("/tasks");
+  revalidatePath("/calendar");
+  return { ok: true as const };
+}

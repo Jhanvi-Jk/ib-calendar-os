@@ -61,7 +61,10 @@ export function FocusSession({
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col justify-center py-10">
       <p className="text-sm text-subtle">
-        {startsInFuture ? "Up next" : "Now"} · {formatRange(startsAt, endsAt, timezone)} ·{" "}
+        {/* A running timer outranks the schedule: once you have started, the
+            block is in progress regardless of what its start time says. */}
+        {isRunning ? "In progress" : startsInFuture ? "Up next" : "Now"} ·{" "}
+        {formatRange(startsAt, endsAt, timezone)} ·{" "}
         {formatDuration(blockMinutes)}
       </p>
 

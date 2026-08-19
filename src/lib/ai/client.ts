@@ -16,8 +16,20 @@ const MODEL = "claude-opus-5";
 
 let cached: Anthropic | null = null;
 
+/**
+ * Whether AI features can run at all. Server-only — callers pass the boolean
+ * down to the client so the UI can hide the feature rather than offering a
+ * button that always fails.
+ */
+export function isAiConfigured(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
 function client(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!isAiConfigured()) {
+    // The message names the variable because it is read by developers in
+    // server logs. It must never be forwarded to the browser — see the
+    // AiUnavailableError handler in import-actions.ts.
     throw new AiUnavailableError("ANTHROPIC_API_KEY is not set.");
   }
   cached ??= new Anthropic();

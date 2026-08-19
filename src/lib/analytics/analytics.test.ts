@@ -61,6 +61,27 @@ describe("momentum", () => {
     expect(result.state).toBe("thriving");
   });
 
+  it("reports no data rather than a perfect score for an untouched week", () => {
+    // Regression: plannedMin === 0 short-circuited the ratio to 1, so a brand
+    // new account with nothing planned was told it was "Thriving" at 100%.
+    const week = Array.from({ length: 7 }, (_, i) => day(`2026-03-0${i + 1}`, 0, 0));
+    const result = computeMomentum(week);
+
+    expect(result.hasData).toBe(false);
+    expect(result.plannedMin).toBe(0);
+  });
+
+  it("reports data as soon as anything is planned", () => {
+    const week = [
+      ...Array.from({ length: 6 }, (_, i) => day(`2026-03-0${i + 1}`, 0, 0)),
+      day("2026-03-07", 60, 30),
+    ];
+    const result = computeMomentum(week);
+
+    expect(result.hasData).toBe(true);
+    expect(result.ratio).toBe(0.5);
+  });
+
   it("never exceeds 1 — overwork is not health", () => {
     const week = Array.from({ length: 7 }, (_, i) =>
       day(`2026-03-0${i + 1}`, 60, 600),

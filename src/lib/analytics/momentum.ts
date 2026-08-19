@@ -25,6 +25,16 @@ export interface MomentumResult {
   completedMin: Minutes;
   /** Days in the window with no planned work — excluded from the ratio. */
   restDays: number;
+  /**
+   * False when the window contains no planned work at all, so there is nothing
+   * to compute a ratio from.
+   *
+   * This distinction matters: "you did everything you planned" and "you have
+   * never planned anything" both produce plannedMin === 0, and collapsing them
+   * told brand-new users they were Thriving at 100%. Callers must check this
+   * before showing a ratio — a fabricated score is worse than no score.
+   */
+  hasData: boolean;
 }
 
 /** Thresholds chosen so "steady" is a wide, comfortable band. */
@@ -59,6 +69,7 @@ export function computeMomentum(
     plannedMin,
     completedMin,
     restDays,
+    hasData: active.length > 0,
   };
 }
 
