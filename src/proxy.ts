@@ -39,11 +39,28 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Must be getUser(), not getSession(): only getUser() revalidates the JWT
-  // against the auth server. getSession() trusts a cookie the client controls.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  /*
+   * getClaims(), not getSession() and not getUser().
+   *
+   * getSession() is unsafe here: it trusts a cookie the client fully controls.
+   *
+   * getUser() is safe but costs a round-trip to the auth server (~250ms) on
+   * EVERY navigation, including each RSC fetch. That latency was the whole
+   * bug behind "week navigation needs two clicks": the click was working, it
+   * just had nothing to show for most of a second.
+   *
+   * getClaims() verifies the JWT signature and expiry locally against the
+   * project's public JWKS (this project signs with ES256), so it needs no
+   * network call after the key set is cached.
+   *
+   * The trade-off is explicit: a session revoked server-side stays accepted
+   * here until the access token expires. That is acceptable because this is
+   * only a ROUTING gate — it decides whether to show the login page. Actual
+   * data access is still authorised by RLS, where PostgREST validates the
+   * token on every query. Nothing here grants access to a row.
+   */
+  const { data: claims } = await supabase.auth.getClaims();
+  const user = claims?.claims?.sub ? claims.claims : null;
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some(

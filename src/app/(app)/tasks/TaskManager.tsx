@@ -103,8 +103,12 @@ export function TaskManager({
    * The solver rejects it later with "deadline has already passed"; saying so
    * at the point of entry is far more useful than at the point of planning.
    */
+  // Compared against the server-supplied nowMin rather than Date.now():
+  // reading the clock during render is impure and makes the result depend on
+  // when React happens to re-render.
   const deadlineIsPast =
-    deadlineAt !== "" && new Date(deadlineAt).getTime() < Date.now();
+    deadlineAt !== "" &&
+    Math.floor(new Date(deadlineAt).getTime() / 60_000) < nowMin;
 
   function resetForm() {
     setTitle("");

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { toEpochMinute } from "@/lib/time";
 import type {
@@ -13,13 +14,21 @@ import { parseClock } from "@/lib/time";
 
 /** Server-side reads. Every one runs under RLS as the signed-in user. */
 
-export async function getSessionUser() {
+/**
+ * Deduplicated per request.
+ *
+ * getUser() is a network round-trip to the auth server (~250ms). The layout
+ * and the page both need the user, so without cache() a single navigation
+ * paid for it two or three times over before any data loading began — which
+ * is what made week navigation feel like the first click did nothing.
+ */
+export const getSessionUser = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
 export interface UserContext {
   userId: string;
@@ -28,11 +37,9 @@ export interface UserContext {
   settings: CapacitySettings;
 }
 
-export async function getUserContext(): Promise<UserContext | null> {
+export const getUserContext = cache(async (): Promise<UserContext | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return null;
 
   const [{ data: profile }, { data: settings }] = await Promise.all([
@@ -58,7 +65,7 @@ export async function getUserContext(): Promise<UserContext | null> {
       planningHorizonDays: settings.planning_horizon_days,
     },
   };
-}
+});
 
 export async function getSubjects(): Promise<Subject[]> {
   const supabase = await createClient();

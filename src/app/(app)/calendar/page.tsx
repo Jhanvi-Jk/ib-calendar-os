@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { WeekGrid, type CalendarItem } from "@/components/calendar/WeekGrid";
+import { WeekNav } from "@/components/calendar/WeekNav";
 import { PlanBar } from "@/components/calendar/PlanBar";
 import { EmptyState } from "@/components/ui";
 import {
@@ -96,26 +96,7 @@ export default async function CalendarPage({
     <div>
       <div className="mb-4 flex items-center gap-3">
         <h1 className="text-lg font-semibold tracking-tight">Week of {label}</h1>
-        <div className="ml-auto flex items-center gap-1 text-sm">
-          <Link
-            href={`/calendar?week=${offset - 1}`}
-            className="rounded-app px-2 py-1 text-muted hover:bg-surface-sunken"
-          >
-            ←
-          </Link>
-          <Link
-            href="/calendar"
-            className="rounded-app px-2 py-1 text-muted hover:bg-surface-sunken"
-          >
-            Today
-          </Link>
-          <Link
-            href={`/calendar?week=${offset + 1}`}
-            className="rounded-app px-2 py-1 text-muted hover:bg-surface-sunken"
-          >
-            →
-          </Link>
-        </div>
+        <WeekNav offset={offset} />
       </div>
 
       <PlanBar
