@@ -1,7 +1,8 @@
 import { Card, Chip, EmptyState, Hint } from "@/components/ui";
 import { Heatmap } from "@/components/review/Heatmap";
+import { SubjectBalance } from "@/components/review/SubjectBalance";
 import { getUserContext } from "@/lib/data/queries";
-import { getReviewData } from "@/lib/data/analytics";
+import { getReviewData, getSubjectBalance } from "@/lib/data/analytics";
 import { MOMENTUM_COPY, recoveryPlanFor } from "@/lib/analytics/momentum";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -17,9 +18,10 @@ export default async function ReviewPage() {
   const ctx = await getUserContext();
   if (!ctx) return null;
 
-  const { momentum, history, accuracy, trackedMinToday } = await getReviewData(
-    ctx.timezone,
-  );
+  const [{ momentum, history, accuracy, trackedMinToday }, balance] = await Promise.all([
+    getReviewData(ctx.timezone),
+    getSubjectBalance(),
+  ]);
   const copy = MOMENTUM_COPY[momentum.state];
   const recovery = recoveryPlanFor(momentum.state);
   const hasData = history.some((d) => d.completedMin > 0);
@@ -95,6 +97,17 @@ export default async function ReviewPage() {
             Start a timer on a task and this fills in.
           </EmptyState>
         )}
+      </Card>
+
+      {/*
+        Momentum says whether the plan was followed. This says whether the plan
+        was pointed at the right subjects — the thing a student is least able
+        to see about their own week.
+      */}
+      <Card>
+        <p className="font-medium">Where your time went</p>
+        <Hint className="mb-4 mt-0.5">Last 14 days, weighted by subject level.</Hint>
+        <SubjectBalance report={balance} />
       </Card>
 
       <Card>

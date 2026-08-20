@@ -1,7 +1,9 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { addLocalDays, localDateKey, startOfLocalDay, toEpochMinute } from "@/lib/time";
 import { computeMomentum, type DayRecord, type MomentumResult } from "@/lib/analytics/momentum";
 import { accuracyReport, calibrate, type AccuracyReport, type CompletedSample } from "@/lib/analytics/calibration";
+import { subjectBalance, type BalanceReport, type SubjectTime } from "@/lib/analytics/balance";
 
 /**
  * Assembles the inputs to the pure analytics functions.
@@ -96,8 +98,14 @@ export async function getReviewData(
   };
 }
 
-/** The open timer, if one is running. */
-export async function getRunningTimer() {
+/**
+ * The open timer, if one is running.
+ *
+ * cache()d: the app layout renders the timer bar and the Tasks/Focus pages
+ * each need the same row, so without this every one of those pages paid for
+ * the identical query twice.
+ */
+export const getRunningTimer = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("time_entries")
@@ -112,4 +120,41 @@ export async function getRunningTimer() {
     title: data.tasks?.title ?? "Untitled",
     startedAt: data.started_at,
   };
-}
+});
+
+/**
+ * Tracked minutes per subject over the recent window.
+ *
+ * Subjects with zero tracked time are included deliberately — a subject that
+ * never appears is exactly the one worth surfacing, and leaving it out of the
+ * result would hide the finding.
+ */
+export const getSubjectBalance = cache(async (days = 14): Promise<BalanceReport> => {
+  const supabase = await createClient();
+  const sinceIso = new Date(Date.now() - days * 86_400_000).toISOString();
+
+  const [{ data: subjects }, { data: entries }] = await Promise.all([
+    supabase.from("subjects").select("id, name, level").eq("is_archived", false),
+    supabase
+      .from("time_entries")
+      .select("duration_min, tasks(subject_id)")
+      .gte("started_at", sinceIso)
+      .not("ended_at", "is", null),
+  ]);
+
+  const minutesBySubject = new Map<string, number>();
+  for (const e of entries ?? []) {
+    const sid = e.tasks?.subject_id;
+    if (!sid) continue;
+    minutesBySubject.set(sid, (minutesBySubject.get(sid) ?? 0) + (e.duration_min ?? 0));
+  }
+
+  const input: SubjectTime[] = (subjects ?? []).map((s) => ({
+    subjectId: s.id,
+    name: s.name,
+    level: s.level,
+    minutes: minutesBySubject.get(s.id) ?? 0,
+  }));
+
+  return subjectBalance(input);
+});

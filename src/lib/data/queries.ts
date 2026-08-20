@@ -176,29 +176,33 @@ export interface ActiveRun {
   blocks: (PlacedBlock & { id: string; taskTitle: string; subjectId: string | null })[];
 }
 
-export async function getActiveRun(): Promise<ActiveRun | null> {
+/**
+ * The active schedule and its blocks in ONE round-trip.
+ *
+ * This used to be two sequential queries — fetch the run, then fetch its
+ * blocks — which serialised two ~150ms trips to Supabase on every calendar
+ * render. PostgREST can embed the child rows via the run_id foreign key, so
+ * the whole thing is one request. cache() also stops the layout and the page
+ * from each paying for it separately.
+ */
+export const getActiveRun = cache(async (): Promise<ActiveRun | null> => {
   const supabase = await createClient();
   const { data: run } = await supabase
     .from("schedule_runs")
-    .select("id, created_at, infeasibility, stats")
+    .select(
+      "id, created_at, infeasibility, stats, scheduled_blocks(id, task_id, starts_at, ends_at, sequence_index, is_locked, energy_score, tasks(title, subject_id))",
+    )
     .eq("is_active", true)
+    .order("starts_at", { referencedTable: "scheduled_blocks" })
     .maybeSingle();
   if (!run) return null;
-
-  const { data: blocks } = await supabase
-    .from("scheduled_blocks")
-    .select(
-      "id, task_id, starts_at, ends_at, sequence_index, is_locked, energy_score, tasks(title, subject_id)",
-    )
-    .eq("run_id", run.id)
-    .order("starts_at");
 
   return {
     id: run.id,
     createdAt: run.created_at,
     infeasibility: (run.infeasibility as unknown[]) ?? [],
     stats: (run.stats as Record<string, unknown>) ?? {},
-    blocks: (blocks ?? []).map((b) => {
+    blocks: (run.scheduled_blocks ?? []).map((b) => {
       const task = b.tasks;
       return {
         id: b.id,
@@ -213,4 +217,4 @@ export async function getActiveRun(): Promise<ActiveRun | null> {
       };
     }),
   };
-}
+});
