@@ -7,6 +7,7 @@ import { findRunByInputHash, persistRun } from "@/lib/data/runs";
 import { solve } from "@/lib/scheduling/solver";
 import { DependencyCycleError } from "@/lib/scheduling/dag";
 import { hashSnapshot } from "@/lib/scheduling/hash";
+import { isSafeToAutoReplan } from "@/lib/data/planning";
 import type { EpochMinute } from "@/lib/domain/types";
 
 type ActionResult =
@@ -142,4 +143,21 @@ export async function toggleBlockLock(blockId: string, locked: boolean) {
 
   revalidatePath("/calendar");
   return { ok: true as const };
+}
+
+/**
+ * Rebuild the plan after a change, but only when nobody is mid-session.
+ *
+ * Called from the task mutations. Deliberately silent about failure: this is a
+ * convenience on top of an explicit Re-plan button, and a task edit must not
+ * fail because a solve did. When it declines, PlanBar's stale banner is what
+ * tells the student the plan needs rebuilding.
+ */
+export async function autoReplanIfSafe(): Promise<void> {
+  try {
+    if (!(await isSafeToAutoReplan())) return;
+    await generatePlan();
+  } catch {
+    // Swallowed on purpose — see above.
+  }
 }

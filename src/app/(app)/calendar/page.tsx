@@ -10,7 +10,7 @@ import {
   getOpenTasks,
   getUserContext,
 } from "@/lib/data/queries";
-import { getAcademicDates, getRunway } from "@/lib/data/planning";
+import { getAcademicDates, getPlanFreshness, getRunway } from "@/lib/data/planning";
 import type { Infeasibility } from "@/lib/domain/types";
 import {
   addLocalDays,
@@ -43,7 +43,7 @@ export default async function CalendarPage({
   const weekStart = addLocalDays(thisWeekStart, offset * 7, timezone);
   const weekEnd = addLocalDays(weekStart, 7, timezone);
 
-  const [events, run, tasks, countdowns, runway] = await Promise.all([
+  const [events, run, tasks, countdowns, runway, freshness] = await Promise.all([
     getEvents(
       fromEpochMinute(weekStart).toISOString(),
       fromEpochMinute(weekEnd).toISOString(),
@@ -52,6 +52,7 @@ export default async function CalendarPage({
     getOpenTasks(),
     getAcademicDates(),
     getRunway(),
+    getPlanFreshness(),
   ]);
 
   // YYYY-MM-DD -> "Tue 25 Aug", rendered in the student's zone.
@@ -123,6 +124,7 @@ export default async function CalendarPage({
         horizonScheduledMin={horizonScheduledMin}
         taskTitles={taskTitles}
         hasPlan={Boolean(run)}
+        isStale={freshness.isStale}
       />
 
       {items.length === 0 ? (

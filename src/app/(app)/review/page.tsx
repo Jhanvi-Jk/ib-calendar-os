@@ -1,10 +1,11 @@
 import { Card, Chip, EmptyState, Hint } from "@/components/ui";
 import { Heatmap } from "@/components/review/Heatmap";
 import { SubjectBalance } from "@/components/review/SubjectBalance";
+import { WeeklyReview } from "@/components/review/WeeklyReview";
 import { getUserContext } from "@/lib/data/queries";
-import { getReviewData, getSubjectBalance } from "@/lib/data/analytics";
+import { getReviewData, getSubjectBalance, getWeeklyReview } from "@/lib/data/analytics";
 import { MOMENTUM_COPY, recoveryPlanFor } from "@/lib/analytics/momentum";
-import { formatDuration } from "@/lib/time";
+import { formatDuration, localDateKey, toEpochMinute } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const STATE_CLASS = {
@@ -18,10 +19,14 @@ export default async function ReviewPage() {
   const ctx = await getUserContext();
   if (!ctx) return null;
 
-  const [{ momentum, history, accuracy, trackedMinToday }, balance] = await Promise.all([
-    getReviewData(ctx.timezone),
-    getSubjectBalance(),
-  ]);
+  const [{ momentum, history, accuracy, trackedMinToday }, balance, weekly] =
+    await Promise.all([
+      getReviewData(ctx.timezone),
+      getSubjectBalance(),
+      getWeeklyReview(ctx.timezone),
+    ]);
+
+  const todayKey = localDateKey(toEpochMinute(new Date()), ctx.timezone);
   const copy = MOMENTUM_COPY[momentum.state];
   const recovery = recoveryPlanFor(momentum.state);
   const hasData = history.some((d) => d.completedMin > 0);
@@ -29,6 +34,9 @@ export default async function ReviewPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-lg font-semibold tracking-tight">Review</h1>
+
+      {/* When it is due this is the reason to be on this page, so it leads. */}
+      {weekly.isDue && <WeeklyReview review={weekly} todayKey={todayKey} />}
 
       {/*
         Momentum, not streaks. There is no counter here that can reset to zero,
@@ -127,6 +135,8 @@ export default async function ReviewPage() {
           </div>
         )}
       </Card>
+
+      {!weekly.isDue && <WeeklyReview review={weekly} todayKey={todayKey} />}
     </div>
   );
 }

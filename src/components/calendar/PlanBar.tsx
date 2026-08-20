@@ -19,6 +19,7 @@ export function PlanBar({
   horizonScheduledMin,
   taskTitles,
   hasPlan,
+  isStale,
 }: {
   infeasibility: Infeasibility[];
   /** Minutes scheduled in the week currently on screen. */
@@ -27,6 +28,8 @@ export function PlanBar({
   horizonScheduledMin: number;
   taskTitles: Record<string, string>;
   hasPlan: boolean;
+  /** Active plan no longer matches the current tasks and settings. */
+  isStale: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -75,6 +78,22 @@ export function PlanBar({
           </div>
         )}
       </div>
+
+      {/*
+        Shown only when auto re-plan declined to act — i.e. a timer was running
+        or a block was in progress. The plan is out of date and the student is
+        the one who decides when it is safe to move things.
+      */}
+      {isStale && !pending && (
+        <div className="flex flex-wrap items-center gap-3 rounded-app border border-strained/40 bg-strained/10 px-3 py-2 text-sm">
+          <span>
+            Your tasks have changed since this plan was built, so it is out of date.
+          </span>
+          <Button size="sm" className="ml-auto" onClick={() => run(generatePlan)}>
+            Re-plan now
+          </Button>
+        </div>
+      )}
 
       {message && <p className="text-sm text-muted">{message}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}

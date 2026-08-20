@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { autoReplanIfSafe } from "@/app/(app)/calendar/actions";
 
 const TaskInput = z.object({
   title: z.string().min(1).max(200),
@@ -37,6 +38,7 @@ export async function createTask(raw: unknown) {
   });
   if (error) return { ok: false as const, error: error.message };
 
+  await autoReplanIfSafe();
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   return { ok: true as const };
@@ -53,6 +55,7 @@ export async function setTaskStatus(taskId: string, done: boolean) {
     .eq("id", taskId);
   if (error) return { ok: false as const, error: error.message };
 
+  await autoReplanIfSafe();
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   return { ok: true as const };
@@ -145,6 +148,7 @@ export async function createSubject(raw: unknown) {
     };
   }
 
+  await autoReplanIfSafe();
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   return { ok: true as const };
@@ -190,6 +194,7 @@ export async function updateTask(raw: unknown) {
     .eq("id", t.id);
   if (error) return { ok: false as const, error: error.message };
 
+  await autoReplanIfSafe();
   revalidatePath("/tasks");
   revalidatePath("/calendar");
   return { ok: true as const };

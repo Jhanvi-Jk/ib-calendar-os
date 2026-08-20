@@ -1,9 +1,10 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { addLocalDays, localDateKey, startOfLocalDay, toEpochMinute } from "@/lib/time";
+import { addLocalDays, localDateKey, localParts, startOfLocalDay, toEpochMinute } from "@/lib/time";
 import { computeMomentum, type DayRecord, type MomentumResult } from "@/lib/analytics/momentum";
 import { accuracyReport, calibrate, type AccuracyReport, type CompletedSample } from "@/lib/analytics/calibration";
 import { subjectBalance, type BalanceReport, type SubjectTime } from "@/lib/analytics/balance";
+import { buildWeeklyReview, type WeeklyReview } from "@/lib/analytics/weekly";
 
 /**
  * Assembles the inputs to the pure analytics functions.
@@ -157,4 +158,42 @@ export const getSubjectBalance = cache(async (days = 14): Promise<BalanceReport>
   }));
 
   return subjectBalance(input);
+});
+
+/** Inputs for the weekly review prompt. */
+export const getWeeklyReview = cache(async (timezone: string): Promise<WeeklyReview> => {
+  const supabase = await createClient();
+  const nowMin = toEpochMinute(new Date());
+  const todayKey = localDateKey(nowMin, timezone);
+  const { dow } = localParts(nowMin, timezone);
+
+  const [{ history }, { data: lastRetro }, { data: tasks }] = await Promise.all([
+    getReviewData(timezone, 14),
+    supabase
+      .from("retrospectives")
+      .select("day")
+      .order("day", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("tasks")
+      .select("id, title, remaining_min, estimate_min, deadline_at")
+      .in("status", ["todo", "in_progress", "blocked"]),
+  ]);
+
+  return buildWeeklyReview({
+    todayKey,
+    todayDow: dow,
+    lastReviewKey: lastRetro?.day ?? null,
+    week: history.slice(-7),
+    openTasks: (tasks ?? []).map((t) => ({
+      id: t.id,
+      title: t.title,
+      remainingMin: t.remaining_min,
+      estimateMin: t.estimate_min,
+      deadlineKey: t.deadline_at
+        ? localDateKey(toEpochMinute(new Date(t.deadline_at)), timezone)
+        : null,
+    })),
+  });
 });

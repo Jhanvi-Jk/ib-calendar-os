@@ -1,7 +1,9 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { loadSnapshot } from "@/lib/data/snapshot";
-import { getUserContext } from "@/lib/data/queries";
+import { getActiveRun, getUserContext } from "@/lib/data/queries";
+import { getRunningTimer } from "@/lib/data/analytics";
+import { hashSnapshot } from "@/lib/scheduling/hash";
 import { buildDayBudgets, buildFreeIntervals, effectiveDailyCapacity } from "@/lib/scheduling/capacity";
 import { buildCountdowns, type AcademicDate, type CountdownBoard } from "@/lib/analytics/countdown";
 import { computeRunway, type DayCapacity, type RunwayReport, type RunwayTask } from "@/lib/analytics/runway";
@@ -80,3 +82,48 @@ export const getRunway = cache(async (): Promise<RunwayReport> => {
   const todayKey = localDateKey(toEpochMinute(new Date()), ctx.timezone);
   return computeRunway(tasks, capacity, todayKey);
 });
+
+/**
+ * Is the active plan still built from the current facts?
+ *
+ * schedule_runs.input_hash already records exactly what the solver saw. Re-
+ * hashing the current snapshot and comparing is therefore a precise staleness
+ * test rather than a guess based on updated_at timestamps.
+ */
+export const getPlanFreshness = cache(async (): Promise<{
+  hasPlan: boolean;
+  isStale: boolean;
+}> => {
+  const supabase = await createClient();
+  const { data: run } = await supabase
+    .from("schedule_runs")
+    .select("input_hash")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!run) return { hasPlan: false, isStale: false };
+
+  const snapshot = await loadSnapshot();
+  if (!snapshot) return { hasPlan: true, isStale: false };
+
+  return { hasPlan: true, isStale: hashSnapshot(snapshot) !== run.input_hash };
+});
+
+/**
+ * Whether the plan can be rebuilt without yanking the rug.
+ *
+ * Re-solving moves Tier 3 blocks. Doing that while the student is mid-session
+ * — timer running, or inside a block right now — takes the thing they are
+ * currently doing and slides it somewhere else. That is the one moment a
+ * planner must not act on its own, so auto re-plan waits.
+ */
+export async function isSafeToAutoReplan(): Promise<boolean> {
+  const [timer, run] = await Promise.all([getRunningTimer(), getActiveRun()]);
+  if (timer) return false;
+
+  const nowMin = toEpochMinute(new Date());
+  const midBlock = (run?.blocks ?? []).some(
+    (b) => b.startsAt <= nowMin && b.endsAt > nowMin,
+  );
+  return !midBlock;
+}

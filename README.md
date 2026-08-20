@@ -10,7 +10,7 @@ All 20 roadmap steps are implemented. What that means concretely:
 | Verified locally | Built, not live-verified |
 |---|---|
 | Schema + 28 DB guardrail assertions | Google Calendar sync (needs OAuth credentials) |
-| Scheduling engine, 99 unit tests | Notion import (needs a Notion token) |
+| Scheduling engine, 149 unit tests | Notion import (needs a Notion token) |
 | Momentum, calibration, DAG, diffing | AI parsing (needs `ANTHROPIC_API_KEY`) |
 | `next build`, `tsc --noEmit`, `eslint` clean | Anything requiring a live Supabase project |
 
@@ -73,7 +73,7 @@ npm run db:test
 npm run db:types
 ```
 
-`npm test` runs 99 unit tests covering the solver, analytics, sync mapping and
+`npm test` runs 149 unit tests covering the solver, analytics, sync mapping and
 the AI safety boundary. `db:test` needs `brew install postgresql@16` but **not**
 Docker: it rebuilds a throwaway cluster, applies every migration from scratch,
 and asserts the invariants the solver depends on — Tier 1 events cannot
