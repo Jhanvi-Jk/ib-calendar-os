@@ -101,17 +101,22 @@ export function WeekGrid({
   const todayKey = startOfLocalDay(nowMin, timezone);
 
   return (
+    // No forced minimum width: a fixed 52rem meant a narrow window clipped
+    // two days off the week and made the user scroll sideways to find them.
+    // Columns compress instead, and the day labels shorten rather than the
+    // week losing days.
     <div className="overflow-x-auto">
-      <div className="min-w-[52rem]">
+      <div className="min-w-0">
         {/* header */}
-        <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-border">
+        <div className="grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-border sm:grid-cols-[3.5rem_repeat(7,1fr)]">
           <div />
           {days.map((d) => {
             const isToday = d.startsAt === todayKey;
             return (
-              <div key={d.index} className="px-2 py-2 text-center">
+              <div key={d.index} className="px-0.5 py-2 text-center sm:px-2">
                 <div className="text-xs uppercase tracking-wide text-subtle">
-                  {DAY_LABELS[d.parts.dow]}
+                  <span className="hidden sm:inline">{DAY_LABELS[d.parts.dow]}</span>
+                  <span className="sm:hidden">{DAY_LABELS[d.parts.dow][0]}</span>
                 </div>
                 <div
                   className={cn(
@@ -128,7 +133,7 @@ export function WeekGrid({
 
         {/* body */}
         <div
-          className="relative grid grid-cols-[3.5rem_repeat(7,1fr)]"
+          className="relative grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] sm:grid-cols-[3.5rem_repeat(7,1fr)]"
           style={{ height: `calc(${visibleMinutes / 60} * var(--hour-height))` }}
         >
           {/* hour rules */}
@@ -136,7 +141,7 @@ export function WeekGrid({
             {hours.map((m) => (
               <div
                 key={m}
-                className="absolute right-2 -translate-y-1/2 text-xs tabular-nums text-subtle"
+                className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-subtle sm:right-2 sm:text-xs"
                 style={{ top: `${((m - windowStart) / visibleMinutes) * 100}%` }}
               >
                 {String(Math.floor(m / 60)).padStart(2, "0")}
@@ -161,7 +166,7 @@ export function WeekGrid({
                     key={`${it.id}-${d.index}`}
                     onClick={() => onSelect?.(it)}
                     className={cn(
-                      "absolute inset-x-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs",
+                      "absolute inset-x-0.5 overflow-hidden rounded-md px-1 py-1 text-left text-xs sm:inset-x-1 sm:px-2",
                       "border-l-[3px] transition-shadow hover:shadow-md",
                       it.variant === "event"
                         ? "bg-surface-raised"

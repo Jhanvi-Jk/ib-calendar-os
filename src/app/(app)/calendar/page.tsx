@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { WeekGrid, type CalendarItem } from "@/components/calendar/WeekGrid";
 import { WeekNav } from "@/components/calendar/WeekNav";
 import { PlanBar } from "@/components/calendar/PlanBar";
 import { CountdownStrip } from "@/components/calendar/CountdownStrip";
 import { RunwayCard } from "@/components/calendar/RunwayCard";
-import { EmptyState } from "@/components/ui";
 import {
   getActiveRun,
   getEvents,
@@ -127,22 +127,44 @@ export default async function CalendarPage({
         isStale={freshness.isStale}
       />
 
-      {items.length === 0 ? (
-        <EmptyState title="Nothing scheduled this week">
-          Add your classes and deadlines, then generate a plan.
-        </EmptyState>
-      ) : (
-        <div className="rounded-app border border-border bg-surface">
-          <WeekGrid
-            weekStart={weekStart}
-            items={items}
-            timezone={timezone}
-            dayStartMin={settings.dayStartMin}
-            dayEndMin={settings.dayEndMin}
-            nowMin={nowMin}
-          />
-        </div>
-      )}
+      {/*
+        The grid ALWAYS renders, empty or not.
+        It used to be swapped out for an empty-state box when there was
+        nothing scheduled, which meant a brand-new user — or anyone with a
+        clear week — opened the calendar and found no calendar. The week grid
+        is the product's canvas; emptiness is a state to show *inside* it, not
+        a reason to remove it.
+      */}
+      <div className="relative rounded-app border border-border bg-surface">
+        <WeekGrid
+          weekStart={weekStart}
+          items={items}
+          timezone={timezone}
+          dayStartMin={settings.dayStartMin}
+          dayEndMin={settings.dayEndMin}
+          nowMin={nowMin}
+        />
+
+        {items.length === 0 && (
+          // Non-interactive so it can never swallow a click on the grid
+          // beneath it; the button re-enables pointer events for itself.
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+            <div className="pointer-events-auto max-w-sm rounded-app border border-border bg-surface/95 p-5 text-center shadow-lg backdrop-blur">
+              <p className="font-medium">Your week is clear</p>
+              <p className="mt-1 text-sm text-muted">
+                Add what you owe with honest deadlines, then generate a plan and
+                it will fill in around your classes and sleep.
+              </p>
+              <Link
+                href="/tasks"
+                className="mt-3 inline-flex h-10 items-center rounded-app bg-primary px-4 text-sm font-medium text-inverse hover:bg-primary-hover"
+              >
+                Add a task
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
