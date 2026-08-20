@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { WeekGrid, type CalendarItem } from "@/components/calendar/WeekGrid";
-import { WeekNav } from "@/components/calendar/WeekNav";
-import { PlanBar } from "@/components/calendar/PlanBar";
-import { CountdownStrip } from "@/components/calendar/CountdownStrip";
-import { RunwayCard } from "@/components/calendar/RunwayCard";
+import { CalendarToolbar } from "@/components/calendar/CalendarToolbar";
 import {
   getActiveRun,
   getEvents,
@@ -55,16 +52,6 @@ export default async function CalendarPage({
     getPlanFreshness(),
   ]);
 
-  // YYYY-MM-DD -> "Tue 25 Aug", rendered in the student's zone.
-  const deadlineFmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const formatDeadline = (key: string) =>
-    deadlineFmt.format(new Date(`${key}T12:00:00Z`));
-
   const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
 
   // The header stats and the empty state must be derived from the SAME blocks,
@@ -110,21 +97,19 @@ export default async function CalendarPage({
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-lg font-semibold tracking-tight">Week of {label}</h1>
-        <WeekNav offset={offset} />
-      </div>
-
-      <CountdownStrip board={countdowns} />
-      <RunwayCard report={runway} formatDate={formatDeadline} />
-
-      <PlanBar
-        infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}
-        weekScheduledMin={weekScheduledMin}
-        horizonScheduledMin={horizonScheduledMin}
-        taskTitles={taskTitles}
+      <CalendarToolbar
+        weekLabel={`Week of ${label}`}
+        offset={offset}
+        primary={countdowns.primary}
+        upcoming={countdowns.upcoming}
         hasPlan={Boolean(run)}
         isStale={freshness.isStale}
+        weekScheduledMin={weekScheduledMin}
+        elsewhereMin={Math.max(0, horizonScheduledMin - weekScheduledMin)}
+        runway={runway}
+        infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}
+        taskTitles={taskTitles}
+        timezone={timezone}
       />
 
       {/*
