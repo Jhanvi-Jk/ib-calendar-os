@@ -206,6 +206,26 @@ begin
     (select context_uri is not null from tasks where id = t_draft),
     'an obsidian:// context URI is accepted');
 
+  -- ===== academic calendar ================================================
+  insert into academic_dates (user_id, kind, label, starts_on, ends_on, is_primary)
+    values (u, 'exam_session', 'IB May 2027', '2027-05-01', '2027-05-19', true);
+
+  perform assert_rejects(format(
+    $q$insert into academic_dates (user_id, kind, label, starts_on, is_primary)
+       values (%L, 'mock_exams', 'Mocks', '2027-01-12', true)$q$, u),
+    'a second primary academic date is rejected');
+
+  perform assert_rejects(format(
+    $q$insert into academic_dates (user_id, kind, label, starts_on, ends_on)
+       values (%L, 'half_term', 'Backwards break', '2026-11-01', '2026-10-24')$q$, u),
+    'an academic range ending before it starts is rejected');
+
+  insert into academic_dates (user_id, kind, label, starts_on, ends_on)
+    values (u, 'half_term', 'October half term', '2026-10-24', '2026-11-01');
+  perform assert_true(
+    (select count(*) from academic_dates where user_id = u) = 2,
+    'non-primary academic dates coexist freely');
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

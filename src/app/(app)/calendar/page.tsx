@@ -1,6 +1,8 @@
 import { WeekGrid, type CalendarItem } from "@/components/calendar/WeekGrid";
 import { WeekNav } from "@/components/calendar/WeekNav";
 import { PlanBar } from "@/components/calendar/PlanBar";
+import { CountdownStrip } from "@/components/calendar/CountdownStrip";
+import { RunwayCard } from "@/components/calendar/RunwayCard";
 import { EmptyState } from "@/components/ui";
 import {
   getActiveRun,
@@ -8,6 +10,7 @@ import {
   getOpenTasks,
   getUserContext,
 } from "@/lib/data/queries";
+import { getAcademicDates, getRunway } from "@/lib/data/planning";
 import type { Infeasibility } from "@/lib/domain/types";
 import {
   addLocalDays,
@@ -40,14 +43,26 @@ export default async function CalendarPage({
   const weekStart = addLocalDays(thisWeekStart, offset * 7, timezone);
   const weekEnd = addLocalDays(weekStart, 7, timezone);
 
-  const [events, run, tasks] = await Promise.all([
+  const [events, run, tasks, countdowns, runway] = await Promise.all([
     getEvents(
       fromEpochMinute(weekStart).toISOString(),
       fromEpochMinute(weekEnd).toISOString(),
     ),
     getActiveRun(),
     getOpenTasks(),
+    getAcademicDates(),
+    getRunway(),
   ]);
+
+  // YYYY-MM-DD -> "Tue 25 Aug", rendered in the student's zone.
+  const deadlineFmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const formatDeadline = (key: string) =>
+    deadlineFmt.format(new Date(`${key}T12:00:00Z`));
 
   const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
 
@@ -98,6 +113,9 @@ export default async function CalendarPage({
         <h1 className="text-lg font-semibold tracking-tight">Week of {label}</h1>
         <WeekNav offset={offset} />
       </div>
+
+      <CountdownStrip board={countdowns} />
+      <RunwayCard report={runway} formatDate={formatDeadline} />
 
       <PlanBar
         infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}

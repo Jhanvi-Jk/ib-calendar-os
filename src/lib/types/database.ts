@@ -12,6 +12,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      academic_dates: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: Database["public"]["Enums"]["academic_date_kind"];
+          label: string;
+          starts_on: string;
+          ends_on: string | null;
+          is_primary: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind: Database["public"]["Enums"]["academic_date_kind"];
+          label: string;
+          starts_on: string;
+          ends_on?: string | null;
+          is_primary?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          kind?: Database["public"]["Enums"]["academic_date_kind"];
+          label?: string;
+          starts_on?: string;
+          ends_on?: string | null;
+          is_primary?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "academic_dates_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ai_proposals: {
         Row: {
           id: string;
@@ -1136,6 +1183,7 @@ export type Database = {
       };
     };
     Enums: {
+      academic_date_kind: "exam_session" | "mock_exams" | "term_start" | "term_end" | "half_term" | "holiday" | "coursework_deadline";
       assessment_kind: "ia_draft" | "ia_final" | "ee_draft" | "ee_final" | "tok_essay" | "tok_exhibition" | "cas_reflection" | "mock" | "paper" | "oral" | "test" | "other";
       calendar_provider: "local" | "google" | "notion";
       dependency_type: "FS" | "SS" | "FF";

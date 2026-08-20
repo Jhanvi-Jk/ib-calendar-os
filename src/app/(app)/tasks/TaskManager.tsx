@@ -99,6 +99,19 @@ export function TaskManager({
     subjects.find((s) => s.id === id)?.name ?? null;
 
   /**
+   * Weight is only worth showing when it is not the default. A badge on every
+   * row is wallpaper; a badge on the two subjects that decide the offer is a
+   * signal — and it explains why the scheduler favours them.
+   */
+  const subjectWeight = (id: string | null) => {
+    const w = subjects.find((s) => s.id === id)?.gradeWeight ?? 1;
+    if (w >= 1.75) return { label: "Decides offer", chip: "bg-tier-1-soft text-tier-1" };
+    if (w >= 1.25) return { label: "High stakes", chip: "bg-tier-2-soft text-tier-2" };
+    if (w <= 0.75) return { label: "Coasting", chip: "bg-surface-sunken text-subtle" };
+    return null;
+  };
+
+  /**
    * A deadline already in the past is almost always a typo or the wrong year.
    * The solver rejects it later with "deadline has already passed"; saying so
    * at the point of entry is far more useful than at the point of planning.
@@ -403,6 +416,10 @@ export function TaskManager({
                 <p className="truncate text-sm font-medium">{t.title}</p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                   {subjectName(t.subjectId) && <span>{subjectName(t.subjectId)}</span>}
+                  {(() => {
+                    const w = subjectWeight(t.subjectId);
+                    return w ? <Chip className={w.chip}>{w.label}</Chip> : null;
+                  })()}
                   <span>{formatDuration(t.remainingMin)} left</span>
                   <span>{COGNITIVE_LOAD_LABELS[t.cognitiveLoad]}</span>
                   {t.deadlineAt && (
