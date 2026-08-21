@@ -235,6 +235,41 @@ export type Database = {
           },
         ];
       };
+      day_write_offs: {
+        Row: {
+          id: string;
+          user_id: string;
+          day: string;
+          reason: Database["public"]["Enums"]["write_off_reason"];
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          day: string;
+          reason?: Database["public"]["Enums"]["write_off_reason"];
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          day?: string;
+          reason?: Database["public"]["Enums"]["write_off_reason"];
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "day_write_offs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       energy_profile: {
         Row: {
           user_id: string;
@@ -1339,6 +1374,7 @@ export type Database = {
       proposal_status: "pending" | "auto_approved" | "approved" | "rejected" | "applied" | "invalid";
       task_status: "todo" | "in_progress" | "blocked" | "done" | "dropped";
       week_parity: "every" | "A" | "B";
+      write_off_reason: "illness" | "family" | "travel" | "burnout" | "other";
     };
     CompositeTypes: { [_ in never]: never };
   };

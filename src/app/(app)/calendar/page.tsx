@@ -8,10 +8,12 @@ import {
   getUserContext,
 } from "@/lib/data/queries";
 import { getAcademicDates, getPlanFreshness, getRunway } from "@/lib/data/planning";
+import { getWrittenOffDaysForRange } from "@/lib/data/writeoffs";
 import type { Infeasibility } from "@/lib/domain/types";
 import {
   addLocalDays,
   fromEpochMinute,
+  localDateKey,
   localParts,
   startOfLocalDay,
   toEpochMinute,
@@ -40,7 +42,7 @@ export default async function CalendarPage({
   const weekStart = addLocalDays(thisWeekStart, offset * 7, timezone);
   const weekEnd = addLocalDays(weekStart, 7, timezone);
 
-  const [events, run, tasks, countdowns, runway, freshness] = await Promise.all([
+  const [events, run, tasks, countdowns, runway, freshness, writtenOff] = await Promise.all([
     getEvents(
       fromEpochMinute(weekStart).toISOString(),
       fromEpochMinute(weekEnd).toISOString(),
@@ -50,6 +52,7 @@ export default async function CalendarPage({
     getAcademicDates(),
     getRunway(),
     getPlanFreshness(),
+    getWrittenOffDaysForRange(weekStart, weekEnd, timezone),
   ]);
 
   const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
@@ -110,6 +113,8 @@ export default async function CalendarPage({
         infeasibility={(run?.infeasibility ?? []) as Infeasibility[]}
         taskTitles={taskTitles}
         timezone={timezone}
+        todayKey={localDateKey(nowMin, timezone)}
+        todayIsWrittenOff={writtenOff.includes(localDateKey(nowMin, timezone))}
       />
 
       {/*

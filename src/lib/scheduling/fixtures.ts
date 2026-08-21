@@ -109,6 +109,7 @@ export function snapshot(over: Partial<SolverSnapshot> = {}): SolverSnapshot {
     tasks: [],
     dependencies: [],
     lockedBlocks: [],
+    writtenOffDays: [],
     seed: 0,
     ...over,
   };

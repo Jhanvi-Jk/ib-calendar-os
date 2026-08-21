@@ -284,6 +284,19 @@ begin
       'different quota-weeks coexist');
   end;
 
+  -- ===== sick days ========================================================
+  insert into day_write_offs (user_id, day, reason) values (u, '2026-09-15', 'illness');
+
+  perform assert_rejects(format(
+    $q$insert into day_write_offs (user_id, day, reason)
+       values (%L, '2026-09-15', 'burnout')$q$, u),
+    'writing off the same day twice is rejected (one write-off, not two)');
+
+  insert into day_write_offs (user_id, day, reason) values (u, '2026-09-16', 'family');
+  perform assert_true(
+    (select count(*) from day_write_offs where user_id = u) = 2,
+    'different days can each be written off');
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

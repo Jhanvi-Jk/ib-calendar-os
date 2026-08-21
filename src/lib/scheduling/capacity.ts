@@ -152,16 +152,22 @@ export function buildDayBudgets(
   const budgets = new Map<string, DayBudget>();
   const { timezone, settings } = snapshot;
 
+  // A written-off day is capped at zero rather than removed from the map, so
+  // it still appears in reports as a day that existed and was deliberately
+  // given up — not as a gap in the record.
+  const writtenOff = new Set(snapshot.writtenOffDays ?? []);
+
   for (const dayStart of eachLocalDay(
     snapshot.horizonStart,
     snapshot.horizonEnd,
     timezone,
   )) {
-    budgets.set(localDateKey(dayStart, timezone), {
-      dateKey: localDateKey(dayStart, timezone),
+    const dateKey = localDateKey(dayStart, timezone);
+    budgets.set(dateKey, {
+      dateKey,
       dayStart,
       availableMin: 0,
-      capMin: settings.maxDailyFocusMin,
+      capMin: writtenOff.has(dateKey) ? 0 : settings.maxDailyFocusMin,
       usedMin: 0,
     });
   }

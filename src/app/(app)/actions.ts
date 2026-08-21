@@ -96,3 +96,55 @@ export async function saveRetrospective(input: {
   revalidatePath("/review");
   return { ok: true as const };
 }
+
+/**
+ * Write off a day — illness, family, burnout.
+ *
+ * Idempotent by unique index: writing off the same day twice is a no-op, not
+ * two write-offs. Re-plans afterwards so the work actually moves instead of
+ * silently becoming an overdue pile.
+ */
+export async function writeOffDay(input: {
+  day: string;
+  reason?: "illness" | "family" | "travel" | "burnout" | "other";
+  note?: string;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: "Not signed in." };
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.day)) {
+    return { ok: false as const, error: "Invalid date." };
+  }
+
+  const { error } = await supabase.from("day_write_offs").upsert(
+    {
+      user_id: user.id,
+      day: input.day,
+      reason: input.reason ?? "illness",
+      note: input.note || null,
+    },
+    { onConflict: "user_id,day" },
+  );
+  if (error) return { ok: false as const, error: error.message };
+
+  const { autoReplanIfSafe } = await import("@/app/(app)/calendar/actions");
+  await autoReplanIfSafe();
+
+  revalidateTimerViews();
+  return { ok: true as const };
+}
+
+export async function undoWriteOff(day: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("day_write_offs").delete().eq("day", day);
+  if (error) return { ok: false as const, error: error.message };
+
+  const { autoReplanIfSafe } = await import("@/app/(app)/calendar/actions");
+  await autoReplanIfSafe();
+
+  revalidateTimerViews();
+  return { ok: true as const };
+}

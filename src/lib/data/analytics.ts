@@ -32,7 +32,8 @@ export async function getReviewData(
   const windowStart = addLocalDays(startOfLocalDay(nowMin, timezone), -days, timezone);
   const windowStartIso = new Date(windowStart * 60_000).toISOString();
 
-  const [{ data: entries }, { data: run }, { data: completed }] = await Promise.all([
+  const [{ data: entries }, { data: run }, { data: completed }, { data: writeOffs }] =
+    await Promise.all([
     supabase
       .from("time_entries")
       .select("started_at, duration_min")
@@ -48,7 +49,16 @@ export async function getReviewData(
       .select("estimate_min, actual_min, subject_id, cognitive_load")
       .eq("status", "done")
       .gt("actual_min", 0),
+    supabase.from("day_write_offs").select("day").gte("day", localDateKey(windowStart, timezone)),
   ]);
+
+  // A day the student wrote off is a rest day, not a miss.
+  //
+  // Zeroing plannedMin is all it takes: computeMomentum already excludes days
+  // with nothing planned from the ratio and counts them as rest. Illness
+  // therefore stops dragging the number down without any special case in the
+  // momentum logic itself.
+  const writtenOff = new Set((writeOffs ?? []).map((w) => w.day as string));
 
   // Planned minutes come from the active run's blocks, keyed by local day.
   const plannedByDay = new Map<string, number>();
@@ -79,7 +89,7 @@ export async function getReviewData(
     const key = localDateKey(dayStart, timezone);
     history.push({
       date: key,
-      plannedMin: plannedByDay.get(key) ?? 0,
+      plannedMin: writtenOff.has(key) ? 0 : (plannedByDay.get(key) ?? 0),
       completedMin: completedByDay.get(key) ?? 0,
     });
   }

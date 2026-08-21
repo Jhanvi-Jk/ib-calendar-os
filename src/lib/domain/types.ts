@@ -116,6 +116,13 @@ export interface SolverSnapshot {
   /** Blocks the user pinned. Carried into the new run untouched. */
   lockedBlocks: PlacedBlock[];
 
+  /**
+   * Local date keys the student has written off — illness, family, burnout.
+   * These days have zero capacity: the solver moves the work rather than
+   * leaving it to become an overdue pile.
+   */
+  writtenOffDays: string[];
+
   seed: number;
 }
 

@@ -1,10 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  addLocalDays,
-  fromEpochMinute,
-  startOfLocalDay,
-  toEpochMinute,
-} from "@/lib/time";
+import { addLocalDays, fromEpochMinute, localDateKey, startOfLocalDay, toEpochMinute } from "@/lib/time";
 import {
   getDependencies,
   getEnergyCurve,
@@ -53,8 +48,16 @@ export async function loadSnapshot(options?: {
     );
   }
 
-  const [subjects, events, tasks, dependencies, energy, lockedBlocks, calibration] =
-    await Promise.all([
+  const [
+    subjects,
+    events,
+    tasks,
+    dependencies,
+    energy,
+    lockedBlocks,
+    calibration,
+    writtenOffDays,
+  ] = await Promise.all([
       getSubjects(),
       getEvents(
         fromEpochMinute(horizonStart).toISOString(),
@@ -65,6 +68,7 @@ export async function loadSnapshot(options?: {
       getEnergyCurve(),
       getLockedBlocks(horizonStart, horizonEnd),
       getCalibrationBuckets(),
+      getWrittenOffDays(horizonStart, horizonEnd, timezone),
     ]);
 
   /*
@@ -100,6 +104,7 @@ export async function loadSnapshot(options?: {
     tasks: calibratedTasks,
     dependencies,
     lockedBlocks,
+    writtenOffDays,
     seed: options?.seed ?? 0,
   };
 }
@@ -163,4 +168,22 @@ async function getCalibrationBuckets(): Promise<Map<string, Calibration>> {
   }));
 
   return calibrateByBucket(samples);
+}
+
+/** Local date keys the student has written off inside the horizon. */
+async function getWrittenOffDays(
+  fromMin: EpochMinute,
+  toMin: EpochMinute,
+  timezone: string,
+): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("day_write_offs")
+    .select("day")
+    .gte("day", localDateKey(fromMin, timezone))
+    .lte("day", localDateKey(toMin, timezone));
+
+  // Migration 009 may not be applied — no write-offs is a valid state.
+  if (error) return [];
+  return (data ?? []).map((r) => r.day as string);
 }

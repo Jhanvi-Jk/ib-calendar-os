@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { generatePlan, undoLastPlan } from "@/app/(app)/calendar/actions";
 import { WeekNav } from "@/components/calendar/WeekNav";
+import { WriteOffDay } from "@/components/calendar/WriteOffDay";
 import { Button, Chip } from "@/components/ui";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,8 @@ export function CalendarToolbar({
   infeasibility,
   taskTitles,
   timezone,
+  todayKey,
+  todayIsWrittenOff,
 }: {
   weekLabel: string;
   offset: number;
@@ -54,6 +57,8 @@ export function CalendarToolbar({
    * fine, then throws at runtime. The formatting happens here instead.
    */
   timezone: string;
+  todayKey: string;
+  todayIsWrittenOff: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [openPanel, setOpenPanel] = useState<"none" | "runway" | "blocked">("none");
@@ -111,6 +116,8 @@ export function CalendarToolbar({
               : "Nothing this week"}
             {elsewhereMin > 0 && ` · ${formatDuration(elsewhereMin)} elsewhere`}
           </span>
+
+          <WriteOffDay todayKey={todayKey} isWrittenOff={todayIsWrittenOff} />
 
           {hasPlan && (
             <Button size="sm" disabled={pending} onClick={() => run(undoLastPlan)}>
