@@ -17,6 +17,9 @@ export interface ReviewData {
   history: DayRecord[];
   accuracy: AccuracyReport;
   calibrationRatio: number;
+  /** p80 ratio actually applied to future estimates, and whether it is in force. */
+  calibrationP80: number;
+  calibrationIsReliable: boolean;
   trackedMinToday: number;
 }
 
@@ -95,6 +98,8 @@ export async function getReviewData(
     history,
     accuracy: accuracyReport(samples),
     calibrationRatio: calibrate(samples).ratioP50,
+    calibrationP80: calibrate(samples).ratioP80,
+    calibrationIsReliable: calibrate(samples).isReliable,
     trackedMinToday: completedByDay.get(todayKey) ?? 0,
   };
 }

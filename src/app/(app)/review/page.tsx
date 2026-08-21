@@ -21,8 +21,12 @@ export default async function ReviewPage() {
   const ctx = await getUserContext();
   if (!ctx) return null;
 
-  const [{ momentum, history, accuracy, trackedMinToday }, balance, weekly, quotaReport] =
-    await Promise.all([
+  const [
+    { momentum, history, accuracy, trackedMinToday, calibrationP80, calibrationIsReliable },
+    balance,
+    weekly,
+    quotaReport,
+  ] = await Promise.all([
       getReviewData(ctx.timezone),
       getSubjectBalance(),
       getWeeklyReview(ctx.timezone),
@@ -130,6 +134,19 @@ export default async function ReviewPage() {
       <Card>
         <p className="font-medium">Estimate accuracy</p>
         <Hint className="mt-0.5">{accuracy.headline}</Hint>
+
+        {/*
+          Say so when the scheduler is quietly inflating estimates. A block
+          that is longer than the estimate you typed is confusing unless the
+          app admits it is doing it, and why.
+        */}
+        {calibrationIsReliable && calibrationP80 > 1.05 && (
+          <Hint className="mt-2">
+            Plans now allow <strong>{Math.round((calibrationP80 - 1) * 100)}% longer</strong>{" "}
+            than you estimate, based on what your tracked work actually takes. Your
+            task list still shows your own numbers.
+          </Hint>
+        )}
 
         {/*
           The breakdown is only shown alongside a conclusion once there is

@@ -14,6 +14,7 @@ import {
   getUserContext,
 } from "./queries";
 import type { EpochMinute, PlacedBlock, SolverSnapshot } from "@/lib/domain/types";
+import { adjustEstimate, bucketKey, calibrateByBucket, type Calibration, type CompletedSample } from "@/lib/analytics/calibration";
 
 /**
  * Assembles the frozen input to a solve.
@@ -52,7 +53,7 @@ export async function loadSnapshot(options?: {
     );
   }
 
-  const [subjects, events, tasks, dependencies, energy, lockedBlocks] =
+  const [subjects, events, tasks, dependencies, energy, lockedBlocks, calibration] =
     await Promise.all([
       getSubjects(),
       getEvents(
@@ -63,7 +64,29 @@ export async function loadSnapshot(options?: {
       getDependencies(),
       getEnergyCurve(),
       getLockedBlocks(horizonStart, horizonEnd),
+      getCalibrationBuckets(),
     ]);
+
+  /*
+   * Plan against how long work ACTUALLY takes this student, not how long they
+   * hoped it would.
+   *
+   * estimation_calibration has been populated from every tracked timer since
+   * the beginning and was never read by the scheduler, so a student who
+   * reliably runs 60% over kept being handed the same impossible week.
+   *
+   * p80 rather than the median: planning to the middle of your own
+   * distribution means missing the plan half the time by construction, which
+   * is exactly the experience that makes people abandon a planner.
+   *
+   * Only applied once a bucket is reliable (see RELIABILITY_THRESHOLD) —
+   * inflating estimates off two data points would be superstition.
+   */
+  const calibratedTasks = tasks.map((t) => {
+    const bucket = calibration.get(bucketKey(t.subjectId, t.cognitiveLoad));
+    const adjusted = adjustEstimate(t.remainingMin, bucket);
+    return adjusted === t.remainingMin ? t : { ...t, remainingMin: adjusted };
+  });
 
   return {
     userId: ctx.userId,
@@ -74,7 +97,7 @@ export async function loadSnapshot(options?: {
     energy,
     subjects,
     events,
-    tasks,
+    tasks: calibratedTasks,
     dependencies,
     lockedBlocks,
     seed: options?.seed ?? 0,
@@ -114,4 +137,30 @@ async function getLockedBlocks(
     isLocked: true,
     energyScore: Number(b.energy_score ?? 1),
   }));
+}
+
+/**
+ * Observed estimate:actual ratios, bucketed by subject and cognitive load.
+ *
+ * Derived from finished tasks rather than the estimation_calibration table so
+ * there is one derivation path and no risk of a stale cache disagreeing with
+ * the raw history.
+ */
+async function getCalibrationBuckets(): Promise<Map<string, Calibration>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tasks")
+    .select("estimate_min, actual_min, subject_id, cognitive_load")
+    .eq("status", "done")
+    .gt("actual_min", 0)
+    .limit(500);
+
+  const samples: CompletedSample[] = (data ?? []).map((t) => ({
+    estimateMin: t.estimate_min,
+    actualMin: t.actual_min,
+    subjectId: t.subject_id,
+    cognitiveLoad: t.cognitive_load,
+  }));
+
+  return calibrateByBucket(samples);
 }
