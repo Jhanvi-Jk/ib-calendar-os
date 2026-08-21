@@ -10,6 +10,8 @@ import { Button, Card, Chip, Hint, Input, Label, Select } from "@/components/ui"
 import { cn } from "@/lib/utils";
 import type { Countdown } from "@/lib/analytics/countdown";
 import type { Subject } from "@/lib/domain/types";
+import type { StudyQuota } from "@/lib/scheduling/quotas";
+import { QuotaManager } from "@/components/settings/QuotaManager";
 
 const KINDS = [
   { value: "exam_session", label: "Exam session" },
@@ -31,9 +33,11 @@ const WEIGHTS = [
 export function SettingsClient({
   dates,
   subjects,
+  quotas,
 }: {
   dates: Countdown[];
   subjects: Subject[];
+  quotas: StudyQuota[];
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -177,6 +181,8 @@ export function SettingsClient({
           </Button>
         </form>
       </Card>
+
+      <QuotaManager quotas={quotas} subjects={subjects} />
 
       <Card>
         <p className="font-medium">Subject weighting</p>

@@ -2,13 +2,15 @@ import { SettingsClient } from "./SettingsClient";
 import { TimetableEditor } from "@/components/settings/TimetableEditor";
 import { getSubjects, getTimetableEntries, getUserContext } from "@/lib/data/queries";
 import { getAcademicDates } from "@/lib/data/planning";
+import { getStudyQuotas } from "@/lib/data/quotas";
 
 export default async function SettingsPage() {
-  const [board, subjects, entries, ctx] = await Promise.all([
+  const [board, subjects, entries, ctx, quotas] = await Promise.all([
     getAcademicDates(),
     getSubjects(),
     getTimetableEntries(),
     getUserContext(),
+    getStudyQuotas(),
   ]);
 
   // Anchor first, then upcoming, then finished — the order a student scans in.
@@ -29,7 +31,7 @@ export default async function SettingsPage() {
         subjects={subjects}
         anchorMonday={ctx?.timetableAnchorMonday ?? null}
       />
-      <SettingsClient dates={dates} subjects={subjects} />
+      <SettingsClient dates={dates} subjects={subjects} quotas={quotas} />
     </div>
   );
 }

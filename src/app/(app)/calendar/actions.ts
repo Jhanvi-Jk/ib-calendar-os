@@ -8,6 +8,7 @@ import { solve } from "@/lib/scheduling/solver";
 import { DependencyCycleError } from "@/lib/scheduling/dag";
 import { hashSnapshot } from "@/lib/scheduling/hash";
 import { isSafeToAutoReplan } from "@/lib/data/planning";
+import { ensureQuotaTasks } from "@/lib/data/quotas";
 import type { EpochMinute } from "@/lib/domain/types";
 
 type ActionResult =
@@ -21,6 +22,11 @@ type ActionResult =
  * moves data in and out of it.
  */
 export async function generatePlan(): Promise<ActionResult> {
+  // Recurring quotas become real weekly tasks before the snapshot is taken,
+  // so the solver treats "3h of SAT Maths this week" exactly like any other
+  // work rather than needing a parallel code path.
+  await ensureQuotaTasks();
+
   const snapshot = await loadSnapshot();
   if (!snapshot) return { ok: false, error: "Finish onboarding first." };
 

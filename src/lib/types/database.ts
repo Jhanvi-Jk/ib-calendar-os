@@ -702,6 +702,72 @@ export type Database = {
           },
         ];
       };
+      study_quotas: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject_id: string | null;
+          label: string;
+          target_min_week: number;
+          min_session_min: number;
+          max_session_min: number;
+          cognitive_load: number;
+          priority_pin: number;
+          is_active: boolean;
+          active_from: string | null;
+          active_to: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject_id?: string | null;
+          label: string;
+          target_min_week: number;
+          min_session_min?: number;
+          max_session_min?: number;
+          cognitive_load?: number;
+          priority_pin?: number;
+          is_active?: boolean;
+          active_from?: string | null;
+          active_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subject_id?: string | null;
+          label?: string;
+          target_min_week?: number;
+          min_session_min?: number;
+          max_session_min?: number;
+          cognitive_load?: number;
+          priority_pin?: number;
+          is_active?: boolean;
+          active_from?: string | null;
+          active_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "study_quotas_subject_id_fkey";
+            columns: ["subject_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "study_quotas_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       subjects: {
         Row: {
           id: string;
@@ -926,6 +992,8 @@ export type Database = {
           updated_at: string;
           context_uri: string | null;
           context_label: string | null;
+          quota_id: string | null;
+          quota_week: string | null;
         };
         Insert: {
           id?: string;
@@ -951,6 +1019,8 @@ export type Database = {
           updated_at?: string;
           context_uri?: string | null;
           context_label?: string | null;
+          quota_id?: string | null;
+          quota_week?: string | null;
         };
         Update: {
           id?: string;
@@ -976,6 +1046,8 @@ export type Database = {
           updated_at?: string;
           context_uri?: string | null;
           context_label?: string | null;
+          quota_id?: string | null;
+          quota_week?: string | null;
         };
         Relationships: [
           {
@@ -990,6 +1062,13 @@ export type Database = {
             columns: ["parent_task_id"];
             isOneToOne: false;
             referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_quota_id_fkey";
+            columns: ["quota_id"];
+            isOneToOne: false;
+            referencedRelation: "study_quotas";
             referencedColumns: ["id"];
           },
           {

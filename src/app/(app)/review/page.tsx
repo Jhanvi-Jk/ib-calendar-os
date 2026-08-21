@@ -1,9 +1,11 @@
 import { Card, Chip, EmptyState, Hint } from "@/components/ui";
 import { Heatmap } from "@/components/review/Heatmap";
 import { SubjectBalance } from "@/components/review/SubjectBalance";
+import { QuotaAttainment } from "@/components/review/QuotaAttainment";
 import { WeeklyReview } from "@/components/review/WeeklyReview";
 import { getUserContext } from "@/lib/data/queries";
 import { getReviewData, getSubjectBalance, getWeeklyReview } from "@/lib/data/analytics";
+import { getQuotaReport } from "@/lib/data/quotas";
 import { MOMENTUM_COPY, recoveryPlanFor } from "@/lib/analytics/momentum";
 import { formatDuration, localDateKey, toEpochMinute } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -19,11 +21,12 @@ export default async function ReviewPage() {
   const ctx = await getUserContext();
   if (!ctx) return null;
 
-  const [{ momentum, history, accuracy, trackedMinToday }, balance, weekly] =
+  const [{ momentum, history, accuracy, trackedMinToday }, balance, weekly, quotaReport] =
     await Promise.all([
       getReviewData(ctx.timezone),
       getSubjectBalance(),
       getWeeklyReview(ctx.timezone),
+      getQuotaReport(),
     ]);
 
   const todayKey = localDateKey(toEpochMinute(new Date()), ctx.timezone);
@@ -112,6 +115,12 @@ export default async function ReviewPage() {
         was pointed at the right subjects — the thing a student is least able
         to see about their own week.
       */}
+      <Card>
+        <p className="font-medium">Weekly targets</p>
+        <Hint className="mb-4 mt-0.5">SAT, TOPIK and anything else that never finishes.</Hint>
+        <QuotaAttainment report={quotaReport} />
+      </Card>
+
       <Card>
         <p className="font-medium">Where your time went</p>
         <Hint className="mb-4 mt-0.5">Last 14 days, weighted by subject level.</Hint>

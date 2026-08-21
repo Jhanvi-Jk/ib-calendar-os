@@ -253,6 +253,37 @@ begin
     (select count(*) from timetable_entries where user_id = u) = 2,
     'overlapping timetable entries are allowed (parity resolves them)');
 
+  -- ===== study quotas =====================================================
+  declare q uuid;
+  begin
+    insert into study_quotas (user_id, label, target_min_week, min_session_min, max_session_min)
+      values (u, 'SAT Maths', 180, 30, 60) returning id into q;
+
+    perform assert_rejects(format(
+      $q$insert into study_quotas (user_id, label, target_min_week, min_session_min, max_session_min)
+         values (%L, 'Backwards sessions', 180, 90, 30)$q$, u),
+      'a quota whose max session is below its min is rejected');
+
+    insert into tasks (user_id, title, estimate_min, quota_id, quota_week)
+      values (u, 'SAT Maths w/c', 180, q, '2026-08-17');
+
+    perform assert_rejects(format(
+      $q$insert into tasks (user_id, title, estimate_min, quota_id, quota_week)
+         values (%L, 'SAT Maths dupe', 180, %L, '2026-08-17')$q$, u, q),
+      'a second task for the same quota-week is rejected (generation is idempotent)');
+
+    perform assert_rejects(format(
+      $q$insert into tasks (user_id, title, estimate_min, quota_id)
+         values (%L, 'Quota without a week', 180, %L)$q$, u, q),
+      'a quota task without a quota_week is rejected');
+
+    insert into tasks (user_id, title, estimate_min, quota_id, quota_week)
+      values (u, 'SAT Maths next week', 180, q, '2026-08-24');
+    perform assert_true(
+      (select count(*) from tasks where quota_id = q) = 2,
+      'different quota-weeks coexist');
+  end;
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;
