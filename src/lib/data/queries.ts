@@ -11,6 +11,7 @@ import type {
   Subject,
 } from "@/lib/domain/types";
 import { parseClock } from "@/lib/time";
+import { expandTimetable, type TimetableEntry } from "@/lib/scheduling/timetable";
 
 /** Server-side reads. Every one runs under RLS as the signed-in user. */
 
@@ -35,6 +36,8 @@ export interface UserContext {
   timezone: string;
   displayName: string | null;
   settings: CapacitySettings;
+  /** Monday of a known Week A; null = single-week timetable. */
+  timetableAnchorMonday: string | null;
 }
 
 export const getUserContext = cache(async (): Promise<UserContext | null> => {
@@ -52,6 +55,7 @@ export const getUserContext = cache(async (): Promise<UserContext | null> => {
     userId: user.id,
     timezone: profile?.timezone ?? "UTC",
     displayName: profile?.display_name ?? null,
+    timetableAnchorMonday: settings.timetable_anchor_monday ?? null,
     settings: {
       sleepStartMin: parseClock(settings.sleep_start),
       sleepEndMin: parseClock(settings.sleep_end),
@@ -85,6 +89,40 @@ export async function getSubjects(): Promise<Subject[]> {
   }));
 }
 
+/**
+ * The weekly class pattern.
+ *
+ * Expanded on read rather than materialised into `events`: moving a period
+ * then updates one row instead of a year of copies that can drift apart.
+ */
+export const getTimetableEntries = cache(async (): Promise<TimetableEntry[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("timetable_entries")
+    .select(
+      "id, subject_id, label, room, day_of_week, starts_min, ends_min, parity, active_from, active_to",
+    )
+    .order("day_of_week")
+    .order("starts_min");
+
+  // Migration 007 may not be applied yet. An absent table means "no
+  // timetable", not a broken calendar.
+  if (error) return [];
+
+  return (data ?? []).map((t) => ({
+    id: t.id,
+    subjectId: t.subject_id,
+    label: t.label,
+    room: t.room,
+    dayOfWeek: t.day_of_week,
+    startsMin: t.starts_min,
+    endsMin: t.ends_min,
+    parity: t.parity,
+    activeFrom: t.active_from,
+    activeTo: t.active_to,
+  }));
+});
+
 export async function getEvents(fromISO: string, toISO: string): Promise<FixedEvent[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -94,7 +132,7 @@ export async function getEvents(fromISO: string, toISO: string): Promise<FixedEv
     .gt("ends_at", fromISO)
     .order("starts_at");
 
-  return (data ?? []).map((e) => ({
+  const stored: FixedEvent[] = (data ?? []).map((e) => ({
     id: e.id,
     title: e.title,
     startsAt: toEpochMinute(new Date(e.starts_at)),
@@ -104,6 +142,20 @@ export async function getEvents(fromISO: string, toISO: string): Promise<FixedEv
     isLocked: e.is_locked,
     subjectId: e.subject_id,
   }));
+
+  // Lessons join the event list here, so the calendar grid and the solver see
+  // exactly the same classes — there is no second source of truth to diverge.
+  const [ctx, entries] = await Promise.all([getUserContext(), getTimetableEntries()]);
+  if (!ctx || entries.length === 0) return stored;
+
+  const lessons = expandTimetable(entries, {
+    from: toEpochMinute(new Date(fromISO)),
+    to: toEpochMinute(new Date(toISO)),
+    timezone: ctx.timezone,
+    anchorMondayKey: ctx.timetableAnchorMonday,
+  });
+
+  return [...stored, ...lessons].sort((a, b) => a.startsAt - b.startsAt);
 }
 
 // Kept on one line deliberately: supabase-js infers row types from the select

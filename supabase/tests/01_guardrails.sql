@@ -226,6 +226,33 @@ begin
     (select count(*) from academic_dates where user_id = u) = 2,
     'non-primary academic dates coexist freely');
 
+  -- ===== timetable ========================================================
+  insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min)
+    values (u, 'Physics HL', 1, 540, 600);
+
+  perform assert_rejects(format(
+    $q$insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min)
+       values (%L, 'Backwards period', 1, 600, 540)$q$, u),
+    'a lesson ending before it starts is rejected');
+
+  perform assert_rejects(format(
+    $q$insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min)
+       values (%L, 'Day 9', 9, 540, 600)$q$, u),
+    'an out-of-range day_of_week is rejected');
+
+  perform assert_rejects(format(
+    $q$insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min, active_from, active_to)
+       values (%L, 'Inverted term', 1, 540, 600, '2027-01-01', '2026-01-01')$q$, u),
+    'a timetable entry whose active range is inverted is rejected');
+
+  -- Two lessons at the same time is a real timetable clash the student must
+  -- see, not a database error, so the schema deliberately allows it.
+  insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min, parity)
+    values (u, 'Chemistry HL', 1, 540, 600, 'B');
+  perform assert_true(
+    (select count(*) from timetable_entries where user_id = u) = 2,
+    'overlapping timetable entries are allowed (parity resolves them)');
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

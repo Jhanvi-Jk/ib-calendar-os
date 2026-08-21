@@ -1110,6 +1110,69 @@ export type Database = {
           },
         ];
       };
+      timetable_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject_id: string | null;
+          label: string;
+          room: string | null;
+          day_of_week: number;
+          starts_min: number;
+          ends_min: number;
+          parity: Database["public"]["Enums"]["week_parity"];
+          active_from: string | null;
+          active_to: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject_id?: string | null;
+          label: string;
+          room?: string | null;
+          day_of_week: number;
+          starts_min: number;
+          ends_min: number;
+          parity?: Database["public"]["Enums"]["week_parity"];
+          active_from?: string | null;
+          active_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subject_id?: string | null;
+          label?: string;
+          room?: string | null;
+          day_of_week?: number;
+          starts_min?: number;
+          ends_min?: number;
+          parity?: Database["public"]["Enums"]["week_parity"];
+          active_from?: string | null;
+          active_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "timetable_entries_subject_id_fkey";
+            columns: ["subject_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timetable_entries_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_settings: {
         Row: {
           user_id: string;
@@ -1127,6 +1190,7 @@ export type Database = {
           updated_at: string;
           focus_hides_navigation: boolean;
           focus_autostart_timer: boolean;
+          timetable_anchor_monday: string | null;
         };
         Insert: {
           user_id: string;
@@ -1144,6 +1208,7 @@ export type Database = {
           updated_at?: string;
           focus_hides_navigation?: boolean;
           focus_autostart_timer?: boolean;
+          timetable_anchor_monday?: string | null;
         };
         Update: {
           user_id?: string;
@@ -1161,6 +1226,7 @@ export type Database = {
           updated_at?: string;
           focus_hides_navigation?: boolean;
           focus_autostart_timer?: boolean;
+          timetable_anchor_monday?: string | null;
         };
         Relationships: [
           {
@@ -1193,6 +1259,7 @@ export type Database = {
       proposal_kind: "task_extract" | "estimate" | "classify" | "dependency" | "reschedule_intent" | "summarize";
       proposal_status: "pending" | "auto_approved" | "approved" | "rejected" | "applied" | "invalid";
       task_status: "todo" | "in_progress" | "blocked" | "done" | "dropped";
+      week_parity: "every" | "A" | "B";
     };
     CompositeTypes: { [_ in never]: never };
   };

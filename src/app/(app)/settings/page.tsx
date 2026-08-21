@@ -1,9 +1,15 @@
 import { SettingsClient } from "./SettingsClient";
-import { getSubjects } from "@/lib/data/queries";
+import { TimetableEditor } from "@/components/settings/TimetableEditor";
+import { getSubjects, getTimetableEntries, getUserContext } from "@/lib/data/queries";
 import { getAcademicDates } from "@/lib/data/planning";
 
 export default async function SettingsPage() {
-  const [board, subjects] = await Promise.all([getAcademicDates(), getSubjects()]);
+  const [board, subjects, entries, ctx] = await Promise.all([
+    getAcademicDates(),
+    getSubjects(),
+    getTimetableEntries(),
+    getUserContext(),
+  ]);
 
   // Anchor first, then upcoming, then finished — the order a student scans in.
   const dates = [
@@ -12,5 +18,18 @@ export default async function SettingsPage() {
     ...board.past,
   ];
 
-  return <SettingsClient dates={dates} subjects={subjects} />;
+  return (
+    <div className="space-y-5">
+      {/*
+        Timetable leads. It is the thing that has to be right before anything
+        else works: without lessons the solver believes every weekday is empty.
+      */}
+      <TimetableEditor
+        entries={entries}
+        subjects={subjects}
+        anchorMonday={ctx?.timetableAnchorMonday ?? null}
+      />
+      <SettingsClient dates={dates} subjects={subjects} />
+    </div>
+  );
 }
