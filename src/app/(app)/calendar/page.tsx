@@ -5,6 +5,7 @@ import {
   getActiveRun,
   getEvents,
   getOpenTasks,
+  getSubjects,
   getUserContext,
 } from "@/lib/data/queries";
 import { getAcademicDates, getPlanFreshness, getRunway } from "@/lib/data/planning";
@@ -42,7 +43,8 @@ export default async function CalendarPage({
   const weekStart = addLocalDays(thisWeekStart, offset * 7, timezone);
   const weekEnd = addLocalDays(weekStart, 7, timezone);
 
-  const [events, run, tasks, countdowns, runway, freshness, writtenOff] = await Promise.all([
+  const [events, run, tasks, countdowns, runway, freshness, writtenOff, subjects] =
+    await Promise.all([
     getEvents(
       fromEpochMinute(weekStart).toISOString(),
       fromEpochMinute(weekEnd).toISOString(),
@@ -53,6 +55,7 @@ export default async function CalendarPage({
     getRunway(),
     getPlanFreshness(),
     getWrittenOffDaysForRange(weekStart, weekEnd, timezone),
+    getSubjects(),
   ]);
 
   const taskTitles = Object.fromEntries(tasks.map((t) => [t.id, t.title]));
@@ -115,6 +118,7 @@ export default async function CalendarPage({
         timezone={timezone}
         todayKey={localDateKey(nowMin, timezone)}
         todayIsWrittenOff={writtenOff.includes(localDateKey(nowMin, timezone))}
+        subjects={subjects}
       />
 
       {/*

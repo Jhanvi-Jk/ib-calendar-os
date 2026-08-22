@@ -297,6 +297,37 @@ begin
     (select count(*) from day_write_offs where user_id = u) = 2,
     'different days can each be written off');
 
+  -- ===== revision =========================================================
+  declare rt uuid;
+  begin
+    insert into revision_topics (user_id, subject_id, label, confidence, triggered_on)
+      values (u, s_math, 'Geometric progressions', 2, '2026-09-07') returning id into rt;
+
+    insert into revision_passes (user_id, topic_id, pass_index, earliest_on, due_on, estimate_min)
+      values (u, rt, 0, '2026-09-08', '2026-09-10', 45);
+
+    perform assert_rejects(format(
+      $q$insert into revision_passes (user_id, topic_id, pass_index, earliest_on, due_on, estimate_min)
+         values (%L, %L, 0, '2026-09-08', '2026-09-10', 45)$q$, u, rt),
+      'a duplicate revision pass index is rejected (cycles are idempotent)');
+
+    perform assert_rejects(format(
+      $q$insert into revision_passes (user_id, topic_id, pass_index, earliest_on, due_on, estimate_min)
+         values (%L, %L, 1, '2026-09-20', '2026-09-13', 30)$q$, u, rt),
+      'a revision window ending before it opens is rejected');
+
+    perform assert_rejects(format(
+      $q$insert into revision_topics (user_id, label, confidence, triggered_on)
+         values (%L, 'Impossible confidence', 9, '2026-09-07')$q$, u),
+      'a confidence outside 1-5 is rejected');
+
+    insert into revision_passes (user_id, topic_id, pass_index, is_pre_exam, earliest_on, due_on, estimate_min)
+      values (u, rt, 3, true, '2028-04-06', '2028-04-20', 35);
+    perform assert_true(
+      (select count(*) from revision_passes where topic_id = rt) = 2,
+      'spaced and pre-exam passes coexist on one topic');
+  end;
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

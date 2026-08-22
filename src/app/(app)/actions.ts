@@ -148,3 +148,27 @@ export async function undoWriteOff(day: string) {
   revalidateTimerViews();
   return { ok: true as const };
 }
+
+/**
+ * "I did badly in circular motion today."
+ *
+ * Starts a spaced revision cycle from today and re-plans so the first pass
+ * lands in the next day or two. Deliberately one action: after a bad test the
+ * student should not have to create four tasks by hand.
+ */
+export async function flagWeakTopic(input: {
+  subjectId: string | null;
+  label: string;
+  confidence: number;
+}) {
+  const { startRevisionCycle } = await import("@/lib/data/revision");
+  const result = await startRevisionCycle(input);
+  if (!result.ok) return result;
+
+  const { autoReplanIfSafe } = await import("@/app/(app)/calendar/actions");
+  await autoReplanIfSafe();
+
+  revalidateTimerViews();
+  revalidatePath("/settings");
+  return { ok: true as const, passes: result.passes };
+}

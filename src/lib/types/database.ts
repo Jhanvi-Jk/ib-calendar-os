@@ -609,6 +609,124 @@ export type Database = {
           },
         ];
       };
+      revision_passes: {
+        Row: {
+          id: string;
+          user_id: string;
+          topic_id: string;
+          pass_index: number;
+          is_pre_exam: boolean;
+          earliest_on: string;
+          due_on: string;
+          estimate_min: number;
+          task_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          topic_id: string;
+          pass_index: number;
+          is_pre_exam?: boolean;
+          earliest_on: string;
+          due_on: string;
+          estimate_min?: number;
+          task_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          topic_id?: string;
+          pass_index?: number;
+          is_pre_exam?: boolean;
+          earliest_on?: string;
+          due_on?: string;
+          estimate_min?: number;
+          task_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_passes_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_passes_topic_id_fkey";
+            columns: ["topic_id"];
+            isOneToOne: false;
+            referencedRelation: "revision_topics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_passes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      revision_topics: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject_id: string | null;
+          label: string;
+          origin: Database["public"]["Enums"]["revision_origin"];
+          confidence: number;
+          triggered_on: string;
+          is_active: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject_id?: string | null;
+          label: string;
+          origin?: Database["public"]["Enums"]["revision_origin"];
+          confidence?: number;
+          triggered_on: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subject_id?: string | null;
+          label?: string;
+          origin?: Database["public"]["Enums"]["revision_origin"];
+          confidence?: number;
+          triggered_on?: string;
+          is_active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "revision_topics_subject_id_fkey";
+            columns: ["subject_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "revision_topics_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       schedule_runs: {
         Row: {
           id: string;
@@ -1372,6 +1490,7 @@ export type Database = {
       momentum_state: "thriving" | "steady" | "strained" | "recovering";
       proposal_kind: "task_extract" | "estimate" | "classify" | "dependency" | "reschedule_intent" | "summarize";
       proposal_status: "pending" | "auto_approved" | "approved" | "rejected" | "applied" | "invalid";
+      revision_origin: "weak_spot" | "syllabus" | "manual";
       task_status: "todo" | "in_progress" | "blocked" | "done" | "dropped";
       week_parity: "every" | "A" | "B";
       write_off_reason: "illness" | "family" | "travel" | "burnout" | "other";

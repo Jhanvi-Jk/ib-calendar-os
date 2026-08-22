@@ -1,4 +1,8 @@
 import type { Minutes } from "@/lib/domain/types";
+// Shared with revision scheduling — both count days from a trigger date.
+import { addDaysKey, dayNumberOf, mondayOf } from "./dates";
+
+export { addDaysKey, mondayOf };
 
 /**
  * Turning recurring quotas into concrete weekly work.
@@ -41,45 +45,15 @@ export interface QuotaTaskSpec {
   deadlineKey: string;
 }
 
-const MS_PER_DAY = 86_400_000;
 
-function dayNumber(key: string): number {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!m) throw new Error(`Not a YYYY-MM-DD date key: ${key}`);
-  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) / MS_PER_DAY;
-}
-
-function keyFromDayNumber(n: number): string {
-  const d = new Date(n * MS_PER_DAY);
-  return d.toISOString().slice(0, 10);
-}
-
-export function addDaysKey(key: string, days: number): string {
-  return keyFromDayNumber(dayNumber(key) + days);
-}
-
-/**
- * The Monday on or before `key`.
- *
- * Quota weeks are Monday-based even though the calendar grid renders
- * Sunday-first: a student's week of work runs Monday to Sunday, and putting
- * the boundary mid-weekend would split a Saturday revision session across two
- * quota periods.
- */
-export function mondayOf(key: string): string {
-  const n = dayNumber(key);
-  // 1970-01-01 was a Thursday, so +3 aligns the modulo to Monday.
-  const dow = (((n + 3) % 7) + 7) % 7;
-  return keyFromDayNumber(n - dow);
-}
 
 /** Every quota-week Monday touching the window, inclusive. */
 export function quotaWeeksBetween(fromKey: string, toKey: string): string[] {
   const weeks: string[] = [];
   let cursor = mondayOf(fromKey);
-  const end = dayNumber(toKey);
+  const end = dayNumberOf(toKey);
   let guard = 0;
-  while (dayNumber(cursor) <= end && guard++ < 200) {
+  while (dayNumberOf(cursor) <= end && guard++ < 200) {
     weeks.push(cursor);
     cursor = addDaysKey(cursor, 7);
   }

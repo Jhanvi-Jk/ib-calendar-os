@@ -4,12 +4,14 @@ import { useState, useTransition } from "react";
 import { generatePlan, undoLastPlan } from "@/app/(app)/calendar/actions";
 import { WeekNav } from "@/components/calendar/WeekNav";
 import { WriteOffDay } from "@/components/calendar/WriteOffDay";
+import { FlagWeakTopic } from "@/components/calendar/FlagWeakTopic";
 import { Button, Chip } from "@/components/ui";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { Countdown } from "@/lib/analytics/countdown";
 import type { Infeasibility } from "@/lib/domain/types";
 import type { RunwayReport } from "@/lib/analytics/runway";
+import type { Subject } from "@/lib/domain/types";
 
 /**
  * One toolbar instead of four stacked banners.
@@ -39,6 +41,7 @@ export function CalendarToolbar({
   timezone,
   todayKey,
   todayIsWrittenOff,
+  subjects,
 }: {
   weekLabel: string;
   offset: number;
@@ -59,6 +62,7 @@ export function CalendarToolbar({
   timezone: string;
   todayKey: string;
   todayIsWrittenOff: boolean;
+  subjects: Subject[];
 }) {
   const [pending, startTransition] = useTransition();
   const [openPanel, setOpenPanel] = useState<"none" | "runway" | "blocked">("none");
@@ -117,6 +121,7 @@ export function CalendarToolbar({
             {elsewhereMin > 0 && ` · ${formatDuration(elsewhereMin)} elsewhere`}
           </span>
 
+          <FlagWeakTopic subjects={subjects} />
           <WriteOffDay todayKey={todayKey} isWrittenOff={todayIsWrittenOff} />
 
           {hasPlan && (
