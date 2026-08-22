@@ -18,6 +18,24 @@
 -- for about a fortnight.
 -- ============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 008 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
+
 create table study_quotas (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null references auth.users (id) on delete cascade,

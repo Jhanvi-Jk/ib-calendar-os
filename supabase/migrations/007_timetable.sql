@@ -15,6 +15,24 @@
 -- src/lib/scheduling/timetable.ts), so there is one source of truth.
 -- ============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 007 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
+
 -- Many IB schools run a two-week cycle. Modelling only 'every' would force
 -- students on a fortnightly timetable to enter the wrong schedule.
 create type week_parity as enum ('every', 'A', 'B');

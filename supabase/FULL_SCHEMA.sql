@@ -1,6 +1,6 @@
 -- ============================================================
 -- IB Calendar OS — full schema, migrations 001-009 combined.
--- Paste into the Supabase SQL editor and Run.
+-- Safe to run on a FRESH project. Run top to bottom, once.
 -- ============================================================
 
 -- ─────────── 001_foundation.sql ───────────
@@ -999,6 +999,24 @@ alter table user_settings
 -- half the study capacity in the horizon.
 -- ============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 006 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
+
 create type academic_date_kind as enum (
   'exam_session',   -- the IB session itself — the year's anchor
   'mock_exams',
@@ -1077,6 +1095,24 @@ comment on column subjects.grade_weight is
 -- the pattern. The pattern is expanded on read instead (see
 -- src/lib/scheduling/timetable.ts), so there is one source of truth.
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 007 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
 
 -- Many IB schools run a two-week cycle. Modelling only 'every' would force
 -- students on a fortnightly timetable to enter the wrong schedule.
@@ -1159,6 +1195,24 @@ comment on column user_settings.timetable_anchor_monday is
 -- for about a fortnight.
 -- ============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 008 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
+
 create table study_quotas (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid not null references auth.users (id) on delete cascade,
@@ -1240,6 +1294,24 @@ comment on column tasks.quota_week is
 -- rest day rather than a miss, and the work is redistributed on the next
 -- solve.
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Prerequisite check.
+--
+-- Without this, running out of order (or against the wrong project) fails
+-- with a bare "relation \"subjects\" does not exist", which says nothing about
+-- the actual cause. Fail loudly and usefully instead.
+-- ---------------------------------------------------------------------------
+do $guard$
+begin
+  if to_regclass('public.subjects') is null
+     or to_regproc('public.set_updated_at') is null then
+    raise exception
+      'Migration 009 cannot run: migrations 001-005 are not present in this database. Either run supabase/FULL_SCHEMA.sql on a fresh project, or check you are connected to the right Supabase project (this app expects the one holding your existing subjects and tasks).';
+  end if;
+end
+$guard$;
+
 
 create type write_off_reason as enum ('illness', 'family', 'travel', 'burnout', 'other');
 
