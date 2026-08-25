@@ -75,9 +75,18 @@ export function expandTimetable(
     to: EpochMinute;
     timezone: string;
     anchorMondayKey: string | null;
+    /**
+     * Occurrences the student has cancelled, keyed `entryId:YYYY-MM-DD`.
+     *
+     * Subtractive, so the weekly pattern stays the single source of truth: a
+     * teaching session that is off on the 27th is one skipped date, not an
+     * edit to the entry and not a deletion that would take every future week
+     * with it. Removing the exception restores the lesson exactly.
+     */
+    cancelled?: ReadonlySet<string>;
   },
 ): FixedEvent[] {
-  const { from, to, timezone, anchorMondayKey } = options;
+  const { from, to, timezone, anchorMondayKey, cancelled } = options;
   if (entries.length === 0) return [];
 
   const out: FixedEvent[] = [];
@@ -95,6 +104,7 @@ export function expandTimetable(
       // With no anchor the student is on a single-week timetable, so a parity
       // label on an entry is treated as "every" rather than silently hiding it.
       if (parity !== null && entry.parity !== "every" && entry.parity !== parity) continue;
+      if (cancelled?.has(`${entry.id}:${dayKey}`)) continue;
 
       const startsAt = dayStart + entry.startsMin;
       const endsAt = dayStart + entry.endsMin;

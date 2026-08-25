@@ -108,3 +108,71 @@ export async function setTimetableAnchor(raw: unknown) {
   revalidatePath("/calendar");
   return { ok: true as const };
 }
+
+// ---------------------------------------------------------------------------
+// Cancelling a single occurrence
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply a parsed cancel/restore command.
+ *
+ * The parsing happens in `lib/commands/timetable-commands.ts` and is a pure
+ * function over a closed grammar — no model is involved, so there is nothing
+ * here that could invent an entry id or a date. This action still re-validates
+ * everything it is handed, because a server action is a public endpoint
+ * regardless of who the caller was meant to be.
+ */
+const OccurrenceInput = z.object({
+  entryId: z.string().uuid(),
+  dateKey: z.string().regex(DATE_KEY),
+  kind: z.enum(["cancel", "restore"]),
+  reason: z.string().max(200).optional(),
+});
+
+export async function setOccurrenceCancelled(raw: unknown) {
+  const parsed = OccurrenceInput.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid command" };
+  }
+  const { entryId, dateKey, kind, reason } = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: "Not signed in." };
+
+  // Scope by user_id as well as id: RLS already enforces this, but an explicit
+  // predicate means a policy regression cannot turn into someone else's
+  // timetable being edited.
+  const { data: entry } = await supabase
+    .from("timetable_entries")
+    .select("id")
+    .eq("id", entryId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!entry) return { ok: false as const, error: "That isn't in your timetable." };
+
+  if (kind === "cancel") {
+    const { error } = await supabase
+      .from("timetable_exceptions")
+      .insert({ user_id: user.id, entry_id: entryId, on_date: dateKey, reason: reason ?? null });
+    // Already cancelled is the desired state, not a failure.
+    if (error && error.code !== "23505") {
+      return { ok: false as const, error: error.message };
+    }
+  } else {
+    const { error } = await supabase
+      .from("timetable_exceptions")
+      .delete()
+      .eq("entry_id", entryId)
+      .eq("on_date", dateKey)
+      .eq("user_id", user.id);
+    if (error) return { ok: false as const, error: error.message };
+  }
+
+  await autoReplanIfSafe();
+  revalidatePath("/calendar");
+  revalidatePath("/settings");
+  return { ok: true as const };
+}

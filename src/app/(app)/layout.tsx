@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getUserContext } from "@/lib/data/queries";
+import { getTimetableEntries, getUserContext } from "@/lib/data/queries";
 import { getRunningTimer } from "@/lib/data/analytics";
+import { localDateKey, toEpochMinute } from "@/lib/time";
 import { RunningTimerBar } from "@/components/RunningTimerBar";
 import { CommandPalette } from "@/components/CommandPalette";
 
@@ -18,7 +19,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [ctx, timer] = await Promise.all([getUserContext(), getRunningTimer()]);
+  const [ctx, timer, timetable] = await Promise.all([
+    getUserContext(),
+    getRunningTimer(),
+    getTimetableEntries(),
+  ]);
   // proxy.ts already blocks anonymous requests; this catches the narrower case
   // of a signed-in user who never finished onboarding.
   if (!ctx) redirect("/onboarding");
@@ -55,7 +60,19 @@ export default async function AppLayout({
       */}
       {timer && <RunningTimerBar title={timer.title} startedAt={timer.startedAt} />}
       <main className="mx-auto max-w-7xl px-5 py-6">{children}</main>
-      <CommandPalette />
+      {/*
+        "today" is resolved here, in a server component, and passed down.
+        Reading the clock during render would make the palette's date parsing
+        drift on unrelated re-renders — the same rule as `nowMin` on WeekGrid.
+      */}
+      <CommandPalette
+        todayKey={localDateKey(toEpochMinute(new Date()), ctx.timezone)}
+        timetableEntries={timetable.map((e) => ({
+          id: e.id,
+          label: e.label,
+          dayOfWeek: e.dayOfWeek,
+        }))}
+      />
     </div>
   );
 }

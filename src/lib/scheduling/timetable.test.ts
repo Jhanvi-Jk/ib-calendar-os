@@ -148,3 +148,53 @@ describe("weekly contact time", () => {
     expect(mins).toBe(90);
   });
 });
+
+describe("cancelled occurrences", () => {
+  const teaching: TimetableEntry = {
+    id: "teach",
+    subjectId: null,
+    label: "Teaching",
+    room: null,
+    dayOfWeek: 4,
+    startsMin: 600,
+    endsMin: 780,
+    parity: "every",
+    activeFrom: null,
+    activeTo: null,
+  };
+
+  const expand = (cancelled?: Set<string>) =>
+    expandTimetable([teaching], {
+      from: toEpochMinute(new Date("2026-08-24T00:00:00Z")),
+      to: toEpochMinute(new Date("2026-09-14T00:00:00Z")),
+      timezone: "UTC",
+      anchorMondayKey: null,
+      cancelled,
+    });
+
+  it("drops only the cancelled date", () => {
+    const before = expand();
+    const after = expand(new Set(["teach:2026-08-27"]));
+    expect(before).toHaveLength(3);
+    expect(after).toHaveLength(2);
+    expect(after.some((e) => e.id.endsWith("2026-08-27"))).toBe(false);
+  });
+
+  it("leaves every other week standing", () => {
+    // The failure mode this replaces was deleting the entry to skip one week,
+    // which silently removed the rest of the term.
+    const after = expand(new Set(["teach:2026-08-27"]));
+    expect(after.map((e) => e.id)).toEqual([
+      "tt:teach:2026-09-03",
+      "tt:teach:2026-09-10",
+    ]);
+  });
+
+  it("ignores an exception for a different entry", () => {
+    expect(expand(new Set(["somethingelse:2026-08-27"]))).toHaveLength(3);
+  });
+
+  it("restores the lesson when the exception is removed", () => {
+    expect(expand(new Set())).toHaveLength(3);
+  });
+});

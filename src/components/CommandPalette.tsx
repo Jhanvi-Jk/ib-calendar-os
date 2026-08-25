@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { generatePlan, undoLastPlan } from "@/app/(app)/calendar/actions";
 import { stopTimer } from "@/app/(app)/actions";
+import { setOccurrenceCancelled } from "@/app/(app)/settings/timetable-actions";
+import {
+  looksLikeTimetableCommand,
+  parseTimetableCommand,
+  type CommandEntry,
+} from "@/lib/commands/timetable-commands";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,7 +27,15 @@ export interface Command {
   run: () => void | Promise<unknown>;
 }
 
-export function CommandPalette() {
+export function CommandPalette({
+  timetableEntries = [],
+  todayKey,
+}: {
+  /** Used to resolve "cancel Thursday 27th teaching" against real lessons. */
+  timetableEntries?: CommandEntry[];
+  /** Injected rather than read from the clock, so the parse is deterministic. */
+  todayKey: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -60,13 +74,55 @@ export function CommandPalette() {
     [router],
   );
 
+  /**
+   * Free text is parsed, not sent anywhere.
+   *
+   * "Cancel Thursday 27th teaching session" is a closed grammar — a verb, a
+   * date, and the name of something already in the timetable — so it is a
+   * deterministic parse rather than a language-model call. No API key, nothing
+   * to hallucinate a date, and the rule that the model never writes to the
+   * database stays true because there is no model.
+   */
+  const parsed = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 3 || !looksLikeTimetableCommand(q)) return null;
+    return parseTimetableCommand(q, { entries: timetableEntries, todayKey });
+  }, [query, timetableEntries, todayKey]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+
+    const parsedCommand: Command[] =
+      parsed?.ok
+        ? [
+            {
+              id: `timetable.${parsed.command.kind}`,
+              // Echo the resolved date back. The student typed "Thursday 27th";
+              // showing the date it landed on is what makes a wrong parse
+              // visible BEFORE it is applied rather than after.
+              label:
+                parsed.command.kind === "cancel"
+                  ? `Cancel ${parsed.command.label} on ${formatDay(parsed.command.dateKey)}`
+                  : `Restore ${parsed.command.label} on ${formatDay(parsed.command.dateKey)}`,
+              hint: "one occurrence only",
+              run: () =>
+                setOccurrenceCancelled({
+                  entryId: parsed.command.entryId,
+                  dateKey: parsed.command.dateKey,
+                  kind: parsed.command.kind,
+                }),
+            },
+          ]
+        : [];
+
     if (!q) return commands;
-    return commands.filter((c) =>
-      `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q),
-    );
-  }, [commands, query]);
+    return [
+      ...parsedCommand,
+      ...commands.filter((c) =>
+        `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q),
+      ),
+    ];
+  }, [commands, query, parsed]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -141,13 +197,16 @@ export function CommandPalette() {
             setQuery(e.target.value);
             setActive(0);
           }}
-          placeholder="Type a command…"
+          placeholder="Type a command, or “cancel Thursday 27th teaching”…"
           className="w-full border-b border-border bg-transparent px-4 py-3 text-sm outline-none placeholder:text-subtle"
           aria-label="Command"
         />
         <ul className="max-h-80 overflow-y-auto py-1">
           {filtered.length === 0 && (
-            <li className="px-4 py-3 text-sm text-muted">No matching command</li>
+            <li className="px-4 py-3 text-sm text-muted">
+              {/* A parse failure explains itself; a plain miss just says so. */}
+              {parsed && !parsed.ok ? parsed.reason : "No matching command"}
+            </li>
           )}
           {filtered.map((command, i) => (
             <li key={command.id}>
@@ -174,4 +233,14 @@ export function CommandPalette() {
       </div>
     </div>
   );
+}
+
+/** "2026-08-27" -> "Thu 27 Aug". Fixed locale so the echo never surprises. */
+function formatDay(dateKey: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${dateKey}T12:00:00Z`));
 }

@@ -1405,6 +1405,48 @@ export type Database = {
           },
         ];
       };
+      timetable_exceptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          entry_id: string;
+          on_date: string;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          entry_id: string;
+          on_date: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          entry_id?: string;
+          on_date?: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "timetable_exceptions_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "timetable_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "timetable_exceptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       user_settings: {
         Row: {
           user_id: string;

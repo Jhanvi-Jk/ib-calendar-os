@@ -328,6 +328,44 @@ begin
       'spaced and pre-exam passes coexist on one topic');
   end;
 
+  -- ===== timetable exceptions =============================================
+  declare tte uuid;
+  begin
+    insert into timetable_entries (user_id, label, day_of_week, starts_min, ends_min)
+      values (u, 'Teaching', 4, 600, 780) returning id into tte;
+
+    insert into timetable_exceptions (user_id, entry_id, on_date, reason)
+      values (u, tte, '2026-08-27', 'not on this week');
+
+    -- Cancelling twice is the same as cancelling once. This is what lets the
+    -- command be re-run, and two devices race, without a spurious failure.
+    perform assert_rejects(format(
+      $q$insert into timetable_exceptions (user_id, entry_id, on_date)
+         values (%L, %L, '2026-08-27')$q$, u, tte),
+      'cancelling the same occurrence twice is rejected (the command is idempotent)');
+
+    insert into timetable_exceptions (user_id, entry_id, on_date)
+      values (u, tte, '2026-09-03');
+    perform assert_true(
+      (select count(*) from timetable_exceptions where entry_id = tte) = 2,
+      'different dates can each be cancelled on one entry');
+
+    -- Subtractive, not destructive: removing the exception must bring the
+    -- lesson back rather than leave a hole in the pattern.
+    delete from timetable_exceptions where entry_id = tte and on_date = '2026-08-27';
+    perform assert_true(
+      (select count(*) from timetable_exceptions where entry_id = tte) = 1
+      and (select count(*) from timetable_entries where id = tte) = 1,
+      'restoring an occurrence leaves the timetable entry intact');
+
+    -- The exception belongs to the lesson; dropping the lesson must not leave
+    -- an orphan pointing at nothing.
+    delete from timetable_entries where id = tte;
+    perform assert_true(
+      (select count(*) from timetable_exceptions where entry_id = tte) = 0,
+      'deleting a lesson cascades to its cancellations');
+  end;
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;

@@ -12,6 +12,7 @@ import type {
 } from "@/lib/domain/types";
 import { parseClock } from "@/lib/time";
 import { expandTimetable, type TimetableEntry } from "@/lib/scheduling/timetable";
+import { getCancelledOccurrences } from "@/lib/data/timetable-exceptions";
 
 /** Server-side reads. Every one runs under RLS as the signed-in user. */
 
@@ -145,7 +146,11 @@ export async function getEvents(fromISO: string, toISO: string): Promise<FixedEv
 
   // Lessons join the event list here, so the calendar grid and the solver see
   // exactly the same classes — there is no second source of truth to diverge.
-  const [ctx, entries] = await Promise.all([getUserContext(), getTimetableEntries()]);
+  const [ctx, entries, cancelled] = await Promise.all([
+    getUserContext(),
+    getTimetableEntries(),
+    getCancelledOccurrences(),
+  ]);
   if (!ctx || entries.length === 0) return stored;
 
   const lessons = expandTimetable(entries, {
@@ -153,6 +158,7 @@ export async function getEvents(fromISO: string, toISO: string): Promise<FixedEv
     to: toEpochMinute(new Date(toISO)),
     timezone: ctx.timezone,
     anchorMondayKey: ctx.timetableAnchorMonday,
+    cancelled,
   });
 
   return [...stored, ...lessons].sort((a, b) => a.startsAt - b.startsAt);
