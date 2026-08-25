@@ -1,6 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+/**
+ * Every page that renders plan state. Revalidating only /calendar left Tasks,
+ * Review and Focus showing the plan that was just superseded.
+ */
+function revalidatePlanViews() {
+  for (const path of ["/calendar", "/tasks", "/review", "/focus"]) {
+    revalidatePath(path);
+  }
+}
 import { createClient } from "@/lib/supabase/server";
 import { loadSnapshot } from "@/lib/data/snapshot";
 import { findRunByInputHash, persistRun } from "@/lib/data/runs";
@@ -42,7 +52,7 @@ export async function generatePlan(): Promise<ActionResult> {
     const saved = await persistRun(snapshot, result, { activate: true });
     if (!saved.ok) return saved;
 
-    revalidatePath("/calendar");
+    revalidatePlanViews();
     return { ok: true, runId: saved.runId };
   } catch (error) {
     if (error instanceof DependencyCycleError) {
@@ -71,7 +81,7 @@ export async function resetDay(dayEpochMinute: EpochMinute): Promise<ActionResul
   });
   if (!saved.ok) return saved;
 
-  revalidatePath("/calendar");
+  revalidatePlanViews();
   return { ok: true, runId: saved.runId };
 }
 
@@ -99,7 +109,7 @@ export async function createWhatIfBranch(label: string): Promise<ActionResult> {
   });
   if (!saved.ok) return saved;
 
-  revalidatePath("/calendar");
+  revalidatePlanViews();
   return { ok: true, runId: saved.runId };
 }
 
@@ -108,7 +118,7 @@ export async function adoptRun(runId: string): Promise<ActionResult> {
   const { error } = await supabase.rpc("activate_schedule_run", { p_run_id: runId });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/calendar");
+  revalidatePlanViews();
   return { ok: true, runId };
 }
 
@@ -131,7 +141,7 @@ export async function undoLastPlan(): Promise<ActionResult> {
   const { error } = await supabase.rpc("activate_schedule_run", { p_run_id: previous.id });
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/calendar");
+  revalidatePlanViews();
   return { ok: true, runId: previous.id };
 }
 
@@ -147,7 +157,7 @@ export async function toggleBlockLock(blockId: string, locked: boolean) {
     .eq("id", blockId);
   if (error) return { ok: false as const, error: error.message };
 
-  revalidatePath("/calendar");
+  revalidatePlanViews();
   return { ok: true as const };
 }
 

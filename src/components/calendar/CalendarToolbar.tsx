@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { generatePlan, undoLastPlan } from "@/app/(app)/calendar/actions";
 import { WeekNav } from "@/components/calendar/WeekNav";
 import { WriteOffDay } from "@/components/calendar/WriteOffDay";
@@ -65,6 +66,7 @@ export function CalendarToolbar({
   todayIsWrittenOff: boolean;
   subjects: Subject[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openPanel, setOpenPanel] = useState<"none" | "runway" | "blocked">("none");
   const [error, setError] = useState("");
@@ -81,7 +83,15 @@ export function CalendarToolbar({
     setError("");
     startTransition(async () => {
       const res = await action();
-      if (!res.ok) setError(res.error ?? "Something went wrong.");
+      if (!res.ok) {
+        setError(res.error ?? "Something went wrong.");
+        return;
+      }
+      // revalidatePath alone leaves the client Router Cache holding whatever
+      // it rendered before the action. Refreshing explicitly is what stops a
+      // freshly generated plan from showing as "Nothing this week" until the
+      // student thinks to reload.
+      router.refresh();
     });
   }
 

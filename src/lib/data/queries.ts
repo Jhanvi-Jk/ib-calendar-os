@@ -249,7 +249,7 @@ export interface ActiveRun {
  */
 export const getActiveRun = cache(async (): Promise<ActiveRun | null> => {
   const supabase = await createClient();
-  const { data: run } = await supabase
+  const { data: run, error } = await supabase
     .from("schedule_runs")
     .select(
       "id, created_at, infeasibility, stats, scheduled_blocks(id, task_id, starts_at, ends_at, sequence_index, is_locked, energy_score, tasks(title, subject_id))",
@@ -257,6 +257,16 @@ export const getActiveRun = cache(async (): Promise<ActiveRun | null> => {
     .eq("is_active", true)
     .order("starts_at", { referencedTable: "scheduled_blocks" })
     .maybeSingle();
+
+  // A failed query and "you have not made a plan yet" are not the same thing,
+  // and conflating them produces the single most alarming lie this app can
+  // tell: an empty week and a "Generate plan" button for a student whose
+  // schedule is sitting safely in the database. Discarding the error made that
+  // indistinguishable from the real empty state and impossible to diagnose.
+  if (error) {
+    console.error("[schedule] could not read the active run:", error.message);
+    return null;
+  }
   if (!run) return null;
 
   return {
