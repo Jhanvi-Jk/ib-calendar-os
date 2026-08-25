@@ -234,8 +234,8 @@ export function WeekGrid({
                     key={`${it.id}-${d.index}`}
                     onClick={() => onSelect?.(it)}
                     className={cn(
-                      "absolute overflow-hidden rounded-md px-1 py-1 text-left text-xs sm:px-2",
-                      "border-l-[3px] transition-shadow hover:shadow-md",
+                      "absolute overflow-hidden rounded-lg px-1.5 py-1 text-left text-xs sm:px-2",
+                      "border-l-4 transition-shadow hover:shadow-md hover:brightness-110",
                       // Only fall back to the flat tier fill when there is no
                       // subject to colour by.
                       token
@@ -251,7 +251,15 @@ export function WeekGrid({
                       // what makes two adjacent blocks read as two things.
                       left: `calc(${(it.lane / it.lanes) * 100}% + 2px)`,
                       width: `calc(${100 / it.lanes}% - 4px)`,
-                      borderLeftColor: `var(--tier-${it.tier})`,
+                      // The accent bar carries the SUBJECT, not the tier. Tier was
+                      // fighting the body tint for the same two square
+                      // centimetres and turning every block into two unrelated
+                      // colours; immovability is already carried by the padlock,
+                      // which is a label rather than a hue and so survives a
+                      // colour-vision deficiency.
+                      borderLeftColor: token
+                        ? `var(--${token})`
+                        : `var(--tier-${it.tier})`,
                       ...(token ? { backgroundColor: `var(--${token}-soft)` } : {}),
                       // Later items sit above earlier ones so a short block
                       // inside a long lesson stays clickable.
@@ -260,7 +268,11 @@ export function WeekGrid({
                     title={`${it.title} · ${formatRange(it.startsAt, it.endsAt, timezone)}`}
                   >
                     <div className="flex items-center gap-1 font-medium text-text">
-                      {it.isLocked && <span aria-label="locked">🔒</span>}
+                      {it.isLocked && (
+                        <span aria-label="Fixed — cannot be moved" className="opacity-50">
+                          🔒
+                        </span>
+                      )}
                       <span className="truncate">{it.title}</span>
                     </div>
                     {it.heightPct > 6 && (

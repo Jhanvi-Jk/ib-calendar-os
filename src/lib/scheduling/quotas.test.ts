@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDaysKey,
+  proRatedTarget,
   mondayOf,
   quotaAttainment,
   quotaTasksNeeded,
@@ -188,5 +189,81 @@ describe("the week you are still in", () => {
       currentWeekMonday: "2026-08-24",
     });
     expect(r.weeks[0].status).toBe("missed");
+  });
+});
+
+describe("weeks the horizon cannot honour", () => {
+  const quota = (over = {}) => ({
+    id: "q", label: "Maths", subjectId: null, targetMinWeek: 350,
+    minSessionMin: 30, maxSessionMin: 60, cognitiveLoad: 3 as const,
+    priorityPin: 0 as const, isActive: true, activeFrom: null, activeTo: null,
+    ...over,
+  });
+
+  it("does not generate a week that barely touches the horizon", () => {
+    // Horizon ends Tue 15 Sept; w/c 14 Sept has ONE day inside it. Generating
+    // a full week there produced work that could never fit and was then
+    // reported to the student as a failure.
+    const specs = quotaTasksNeeded([quota()], {
+      fromKey: "2026-08-25",
+      toKey: "2026-09-15",
+      existing: new Set(),
+    });
+    expect(specs.map((s) => s.quotaWeek)).not.toContain("2026-09-14");
+  });
+
+  it("still generates every week that fits", () => {
+    const specs = quotaTasksNeeded([quota()], {
+      fromKey: "2026-08-25",
+      toKey: "2026-09-15",
+      existing: new Set(),
+    });
+    expect(specs.map((s) => s.quotaWeek)).toEqual([
+      "2026-08-24", "2026-08-31", "2026-09-07",
+    ]);
+  });
+
+  it("pro-rates the week already under way", () => {
+    // Asked on Tuesday: Tue-Sun is six days left, not seven.
+    const specs = quotaTasksNeeded([quota()], {
+      fromKey: "2026-08-25",
+      toKey: "2026-09-15",
+      existing: new Set(),
+    });
+    const current = specs.find((s) => s.quotaWeek === "2026-08-24")!;
+    expect(current.estimateMin).toBe(Math.round((350 * 6) / 7));
+  });
+
+  it("gives a future week its whole target", () => {
+    const specs = quotaTasksNeeded([quota()], {
+      fromKey: "2026-08-25",
+      toKey: "2026-09-15",
+      existing: new Set(),
+    });
+    expect(specs.find((s) => s.quotaWeek === "2026-08-31")!.estimateMin).toBe(350);
+  });
+
+  it("skips a token task when almost no week remains", () => {
+    // Sunday: one day left, and a sliver of a target is not worth a row.
+    const specs = quotaTasksNeeded([quota({ targetMinWeek: 60 })], {
+      fromKey: "2026-08-30",
+      toKey: "2026-09-15",
+      existing: new Set(),
+    });
+    expect(specs.some((s) => s.quotaWeek === "2026-08-24")).toBe(false);
+  });
+});
+
+describe("pro-rating", () => {
+  it("leaves a week that has not started alone", () => {
+    expect(proRatedTarget(350, "2026-08-31", "2026-08-25")).toBe(350);
+  });
+
+  it("scales by the days that remain", () => {
+    expect(proRatedTarget(700, "2026-08-24", "2026-08-27")).toBe(400); // 4/7
+  });
+
+  it("returns nothing for a week already over", () => {
+    expect(proRatedTarget(350, "2026-08-24", "2026-08-31")).toBe(0);
   });
 });

@@ -47,17 +47,51 @@ export interface QuotaTaskSpec {
 
 
 
-/** Every quota-week Monday touching the window, inclusive. */
+/**
+ * Every quota-week the planner can actually honour inside the window.
+ *
+ * A week is only included if it has ALREADY STARTED or ENDS inside the window.
+ * Generating a full week's target for a week the horizon merely clips produces
+ * guaranteed failure: a 21-day horizon ending on the 15th would create 35
+ * hours of work for the week beginning the 14th, none of which can fit in one
+ * day, and every one of those tasks was then reported to the student as
+ * "couldn't be scheduled". Fourteen phantom failures out of twenty-one.
+ *
+ * The week reappears on the next solve, once there is room for it.
+ */
 export function quotaWeeksBetween(fromKey: string, toKey: string): string[] {
   const weeks: string[] = [];
-  let cursor = mondayOf(fromKey);
+  const firstWeek = mondayOf(fromKey);
+  let cursor = firstWeek;
   const end = dayNumberOf(toKey);
   let guard = 0;
   while (dayNumberOf(cursor) <= end && guard++ < 200) {
-    weeks.push(cursor);
+    const weekEnd = dayNumberOf(addDaysKey(cursor, 6));
+    // The current week is always included even though it ends beyond the
+    // window — it is being lived now, and its target is pro-rated below.
+    if (cursor === firstWeek || weekEnd <= end) weeks.push(cursor);
     cursor = addDaysKey(cursor, 7);
   }
   return weeks;
+}
+
+/**
+ * A week already half gone cannot absorb a whole week's target.
+ *
+ * Seven-sevenths of the hours into the four days that are left is not a
+ * stretch goal, it is an impossibility the solver dutifully reports as
+ * failure. Scaling by the days that remain keeps the rate honest.
+ */
+export function proRatedTarget(
+  targetMinWeek: Minutes,
+  weekMonday: string,
+  todayKey: string,
+): Minutes {
+  const elapsed = dayNumberOf(todayKey) - dayNumberOf(weekMonday);
+  if (elapsed <= 0) return targetMinWeek;
+  const remaining = Math.max(0, 7 - elapsed);
+  if (remaining === 0) return 0;
+  return Math.round((targetMinWeek * remaining) / 7);
 }
 
 function quotaActiveInWeek(quota: StudyQuota, weekMonday: string): boolean {
@@ -82,6 +116,7 @@ export function quotaTasksNeeded(
   options: { fromKey: string; toKey: string; existing: Set<string> },
 ): QuotaTaskSpec[] {
   const { fromKey, toKey, existing } = options;
+  const todayKey = fromKey;
   const weeks = quotaWeeksBetween(fromKey, toKey);
   const specs: QuotaTaskSpec[] = [];
 
@@ -89,6 +124,8 @@ export function quotaTasksNeeded(
     for (const week of weeks) {
       if (!quotaActiveInWeek(quota, week)) continue;
       if (existing.has(`${quota.id}:${week}`)) continue;
+      // A week with a day left does not need a token five-minute task.
+      if (proRatedTarget(quota.targetMinWeek, week, todayKey) < quota.minSessionMin) continue;
 
       specs.push({
         quotaId: quota.id,
@@ -97,7 +134,7 @@ export function quotaTasksNeeded(
         // quota work are open at once.
         title: `${quota.label} · w/c ${week}`,
         subjectId: quota.subjectId,
-        estimateMin: quota.targetMinWeek,
+        estimateMin: proRatedTarget(quota.targetMinWeek, week, todayKey),
         minChunkMin: quota.minSessionMin,
         maxChunkMin: quota.maxSessionMin,
         cognitiveLoad: quota.cognitiveLoad,
