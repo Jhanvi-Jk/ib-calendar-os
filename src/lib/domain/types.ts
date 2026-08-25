@@ -86,6 +86,13 @@ export interface CapacitySettings {
   dayEndMin: Minutes;
 
   maxDailyFocusMin: Minutes;
+  /**
+   * Per-weekday override, keyed 0-6 with 0 = Sunday. A missing day falls back
+   * to maxDailyFocusMin. One flat number models a week nobody has: a
+   * self-study day and a day with seven hours of lessons are not the same
+   * size.
+   */
+  maxDailyFocusByDow?: Partial<Record<number, Minutes>>;
   minBlockMin: Minutes;
   maxBlockMin: Minutes;
   contextSwitchPenaltyMin: Minutes;

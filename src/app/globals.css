@@ -73,25 +73,25 @@
      the subject in words. Ten hues cannot be told apart reliably with a
      colour-vision deficiency, and they are not asked to be.               */
   --subject-0: oklch(55% 0.14 20);
-  --subject-0-soft: oklch(93% 0.06 20);
+  --subject-0-soft: oklch(91% 0.075 20);
   --subject-1: oklch(55% 0.14 50);
-  --subject-1-soft: oklch(93% 0.06 50);
+  --subject-1-soft: oklch(91% 0.075 50);
   --subject-2: oklch(55% 0.14 85);
-  --subject-2-soft: oklch(93% 0.06 85);
+  --subject-2-soft: oklch(91% 0.075 85);
   --subject-3: oklch(55% 0.14 130);
-  --subject-3-soft: oklch(93% 0.06 130);
+  --subject-3-soft: oklch(91% 0.075 130);
   --subject-4: oklch(55% 0.14 165);
-  --subject-4-soft: oklch(93% 0.06 165);
+  --subject-4-soft: oklch(91% 0.075 165);
   --subject-5: oklch(55% 0.14 200);
-  --subject-5-soft: oklch(93% 0.06 200);
+  --subject-5-soft: oklch(91% 0.075 200);
   --subject-6: oklch(55% 0.14 235);
-  --subject-6-soft: oklch(93% 0.06 235);
+  --subject-6-soft: oklch(91% 0.075 235);
   --subject-7: oklch(55% 0.14 270);
-  --subject-7-soft: oklch(93% 0.06 270);
+  --subject-7-soft: oklch(91% 0.075 270);
   --subject-8: oklch(55% 0.14 305);
-  --subject-8-soft: oklch(93% 0.06 305);
+  --subject-8-soft: oklch(91% 0.075 305);
   --subject-9: oklch(55% 0.14 340);
-  --subject-9-soft: oklch(93% 0.06 340);
+  --subject-9-soft: oklch(91% 0.075 340);
 
   /* --- calendar geometry ---------------------------------------------- */
   --hour-height: 3.5rem;
@@ -126,26 +126,26 @@
   --tier-5-soft: oklch(30% 0.03 300);
 
   /* --- subject identity: darker tints, lighter accents --------------- */
-  --subject-0: oklch(74% 0.12 20);
-  --subject-0-soft: oklch(30% 0.055 20);
-  --subject-1: oklch(74% 0.12 50);
-  --subject-1-soft: oklch(30% 0.055 50);
-  --subject-2: oklch(74% 0.12 85);
-  --subject-2-soft: oklch(30% 0.055 85);
-  --subject-3: oklch(74% 0.12 130);
-  --subject-3-soft: oklch(30% 0.055 130);
-  --subject-4: oklch(74% 0.12 165);
-  --subject-4-soft: oklch(30% 0.055 165);
-  --subject-5: oklch(74% 0.12 200);
-  --subject-5-soft: oklch(30% 0.055 200);
-  --subject-6: oklch(74% 0.12 235);
-  --subject-6-soft: oklch(30% 0.055 235);
-  --subject-7: oklch(74% 0.12 270);
-  --subject-7-soft: oklch(30% 0.055 270);
-  --subject-8: oklch(74% 0.12 305);
-  --subject-8-soft: oklch(30% 0.055 305);
-  --subject-9: oklch(74% 0.12 340);
-  --subject-9-soft: oklch(30% 0.055 340);
+  --subject-0: oklch(78% 0.15 20);
+  --subject-0-soft: oklch(34% 0.085 20);
+  --subject-1: oklch(78% 0.15 50);
+  --subject-1-soft: oklch(34% 0.085 50);
+  --subject-2: oklch(78% 0.15 85);
+  --subject-2-soft: oklch(34% 0.085 85);
+  --subject-3: oklch(78% 0.15 130);
+  --subject-3-soft: oklch(34% 0.085 130);
+  --subject-4: oklch(78% 0.15 165);
+  --subject-4-soft: oklch(34% 0.085 165);
+  --subject-5: oklch(78% 0.15 200);
+  --subject-5-soft: oklch(34% 0.085 200);
+  --subject-6: oklch(78% 0.15 235);
+  --subject-6-soft: oklch(34% 0.085 235);
+  --subject-7: oklch(78% 0.15 270);
+  --subject-7-soft: oklch(34% 0.085 270);
+  --subject-8: oklch(78% 0.15 305);
+  --subject-8-soft: oklch(34% 0.085 305);
+  --subject-9: oklch(78% 0.15 340);
+  --subject-9-soft: oklch(34% 0.085 340);
 }
 
 [data-theme="sepia"] {
@@ -186,26 +186,26 @@
     --tier-5-soft: oklch(30% 0.03 300);
     /* Subject identity must be redefined here too: a system-dark user with
        no explicit data-theme would otherwise get the light tints. */
-    --subject-0: oklch(74% 0.12 20);
-    --subject-0-soft: oklch(30% 0.055 20);
-    --subject-1: oklch(74% 0.12 50);
-    --subject-1-soft: oklch(30% 0.055 50);
-    --subject-2: oklch(74% 0.12 85);
-    --subject-2-soft: oklch(30% 0.055 85);
-    --subject-3: oklch(74% 0.12 130);
-    --subject-3-soft: oklch(30% 0.055 130);
-    --subject-4: oklch(74% 0.12 165);
-    --subject-4-soft: oklch(30% 0.055 165);
-    --subject-5: oklch(74% 0.12 200);
-    --subject-5-soft: oklch(30% 0.055 200);
-    --subject-6: oklch(74% 0.12 235);
-    --subject-6-soft: oklch(30% 0.055 235);
-    --subject-7: oklch(74% 0.12 270);
-    --subject-7-soft: oklch(30% 0.055 270);
-    --subject-8: oklch(74% 0.12 305);
-    --subject-8-soft: oklch(30% 0.055 305);
-    --subject-9: oklch(74% 0.12 340);
-    --subject-9-soft: oklch(30% 0.055 340);
+    --subject-0: oklch(78% 0.15 20);
+    --subject-0-soft: oklch(34% 0.085 20);
+    --subject-1: oklch(78% 0.15 50);
+    --subject-1-soft: oklch(34% 0.085 50);
+    --subject-2: oklch(78% 0.15 85);
+    --subject-2-soft: oklch(34% 0.085 85);
+    --subject-3: oklch(78% 0.15 130);
+    --subject-3-soft: oklch(34% 0.085 130);
+    --subject-4: oklch(78% 0.15 165);
+    --subject-4-soft: oklch(34% 0.085 165);
+    --subject-5: oklch(78% 0.15 200);
+    --subject-5-soft: oklch(34% 0.085 200);
+    --subject-6: oklch(78% 0.15 235);
+    --subject-6-soft: oklch(34% 0.085 235);
+    --subject-7: oklch(78% 0.15 270);
+    --subject-7-soft: oklch(34% 0.085 270);
+    --subject-8: oklch(78% 0.15 305);
+    --subject-8-soft: oklch(34% 0.085 305);
+    --subject-9: oklch(78% 0.15 340);
+    --subject-9-soft: oklch(34% 0.085 340);
   }
 }
 

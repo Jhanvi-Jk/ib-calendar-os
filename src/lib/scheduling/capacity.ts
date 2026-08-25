@@ -167,7 +167,10 @@ export function buildDayBudgets(
       dateKey,
       dayStart,
       availableMin: 0,
-      capMin: writtenOff.has(dateKey) ? 0 : settings.maxDailyFocusMin,
+      capMin: writtenOff.has(dateKey)
+        ? 0
+        : (settings.maxDailyFocusByDow?.[localParts(dayStart, timezone).dow] ??
+           settings.maxDailyFocusMin),
       usedMin: 0,
     });
   }

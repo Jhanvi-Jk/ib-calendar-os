@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { cn, TIER_STYLES } from "@/lib/utils";
 import { assignLanes } from "@/lib/calendar/lanes";
+import {
+  ZOOM_LEVELS,
+  gridStepMin,
+  subscribeZoom,
+  zoomServerSnapshot,
+  zoomSnapshot,
+} from "@/lib/calendar/zoom";
 import {
   MIN_PER_DAY,
   addLocalDays,
@@ -67,11 +74,21 @@ export function WeekGrid({
     [weekStart, timezone],
   );
 
-  const hours = useMemo(() => {
-    const out: number[] = [];
-    for (let m = windowStart; m <= windowEnd; m += 60) out.push(m);
+  const zoomIndex = useSyncExternalStore(subscribeZoom, zoomSnapshot, zoomServerSnapshot);
+  const hourRem = ZOOM_LEVELS[zoomIndex];
+  const stepMin = gridStepMin(hourRem);
+
+  // Rules every `stepMin`; only whole hours get a label, or the gutter turns
+  // into a wall of numbers at the finest zoom.
+  const rules = useMemo(() => {
+    const out: Array<{ min: number; isHour: boolean }> = [];
+    for (let m = windowStart; m <= windowEnd; m += stepMin) {
+      out.push({ min: m, isHour: m % 60 === 0 });
+    }
     return out;
-  }, [windowStart, windowEnd]);
+  }, [windowStart, windowEnd, stepMin]);
+
+  const hours = useMemo(() => rules.filter((r) => r.isHour), [rules]);
 
   /**
    * Items are placed per day rather than per week: an item crossing local
@@ -175,11 +192,11 @@ export function WeekGrid({
         {/* body */}
         <div
           className="relative grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] sm:grid-cols-[3.5rem_repeat(7,1fr)]"
-          style={{ height: `calc(${visibleMinutes / 60} * var(--hour-height))` }}
+          style={{ height: `calc(${visibleMinutes / 60} * ${hourRem}rem)` }}
         >
           {/* hour rules */}
           <div className="relative">
-            {hours.map((m) => (
+            {hours.map(({ min: m }) => (
               <div
                 key={m}
                 className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-subtle sm:right-2 sm:text-xs"
@@ -192,10 +209,15 @@ export function WeekGrid({
 
           {days.map((d) => (
             <div key={d.index} className="relative border-l border-border">
-              {hours.map((m) => (
+              {rules.map(({ min: m, isHour }) => (
                 <div
                   key={m}
-                  className="pointer-events-none absolute inset-x-0 border-t border-border/60"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 border-t",
+                    // Sub-hour rules are fainter so the hour still reads as
+                    // the anchor rather than every line shouting equally.
+                    isHour ? "border-border/60" : "border-border/25",
+                  )}
                   style={{ top: `${((m - windowStart) / visibleMinutes) * 100}%` }}
                 />
               ))}

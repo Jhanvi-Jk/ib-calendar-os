@@ -64,6 +64,10 @@ export const getUserContext = cache(async (): Promise<UserContext | null> => {
       dayStartMin: parseClock(settings.day_start),
       dayEndMin: parseClock(settings.day_end),
       maxDailyFocusMin: settings.max_daily_focus_min,
+      // jsonb comes back as unknown; the DB constraint guarantees the shape.
+      maxDailyFocusByDow:
+        (settings.max_daily_focus_by_dow as Partial<Record<number, number>> | null) ??
+        undefined,
       minBlockMin: settings.min_block_min,
       maxBlockMin: settings.max_block_min,
       contextSwitchPenaltyMin: settings.context_switch_penalty_min,

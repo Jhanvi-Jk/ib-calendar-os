@@ -1465,6 +1465,7 @@ export type Database = {
           focus_hides_navigation: boolean;
           focus_autostart_timer: boolean;
           timetable_anchor_monday: string | null;
+          max_daily_focus_by_dow: Json | null;
         };
         Insert: {
           user_id: string;
@@ -1483,6 +1484,7 @@ export type Database = {
           focus_hides_navigation?: boolean;
           focus_autostart_timer?: boolean;
           timetable_anchor_monday?: string | null;
+          max_daily_focus_by_dow?: Json | null;
         };
         Update: {
           user_id?: string;
@@ -1501,6 +1503,7 @@ export type Database = {
           focus_hides_navigation?: boolean;
           focus_autostart_timer?: boolean;
           timetable_anchor_monday?: string | null;
+          max_daily_focus_by_dow?: Json | null;
         };
         Relationships: [
           {
@@ -1520,6 +1523,12 @@ export type Database = {
           p_run_id: string;
         };
         Returns: undefined;
+      };
+      is_valid_focus_by_dow: {
+        Args: {
+          v: Json;
+        };
+        Returns: boolean;
       };
     };
     Enums: {

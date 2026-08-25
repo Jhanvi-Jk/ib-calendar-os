@@ -5,6 +5,7 @@ import { generatePlan, undoLastPlan } from "@/app/(app)/calendar/actions";
 import { WeekNav } from "@/components/calendar/WeekNav";
 import { WriteOffDay } from "@/components/calendar/WriteOffDay";
 import { FlagWeakTopic } from "@/components/calendar/FlagWeakTopic";
+import { ZoomControl } from "@/components/calendar/ZoomControl";
 import { Button, Chip } from "@/components/ui";
 import { formatDuration } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,7 @@ export function CalendarToolbar({
             {elsewhereMin > 0 && ` · ${formatDuration(elsewhereMin)} elsewhere`}
           </span>
 
+          <ZoomControl />
           <FlagWeakTopic subjects={subjects} />
           <WriteOffDay todayKey={todayKey} isWrittenOff={todayIsWrittenOff} />
 

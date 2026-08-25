@@ -215,6 +215,45 @@ describe("solver — guarantees", () => {
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
   });
 
+  it("honours a per-weekday focus cap", () => {
+    // A flat cap models a week nobody has. This student's Thursday is a
+    // self-study day; their Monday has seven hours of lessons.
+    const tasks = Array.from({ length: 20 }, (_, i) => task(`t${i}`, { remainingMin: 240 }));
+    const byDow = { 1: 60, 2: 60, 3: 60, 4: 420, 5: 60, 6: 300, 0: 300 };
+    const { blocks } = solve(
+      snapshot({ tasks, settings: { ...DEFAULT_SETTINGS, maxDailyFocusByDow: byDow } }),
+    );
+
+    const perDay = new Map<string, number>();
+    for (const b of blocks) {
+      const dow = new Date(b.startsAt * 60_000).getUTCDay();
+      const day = `${Math.floor((b.startsAt - MONDAY) / 1440)}:${dow}`;
+      perDay.set(day, (perDay.get(day) ?? 0) + minutesOf(b));
+    }
+    for (const [key, total] of perDay) {
+      const dow = Number(key.split(":")[1]);
+      expect(total, `dow ${dow}`).toBeLessThanOrEqual(byDow[dow as keyof typeof byDow]);
+    }
+  });
+
+  it("falls back to the flat cap for a weekday with no override", () => {
+    const tasks = Array.from({ length: 20 }, (_, i) => task(`t${i}`, { remainingMin: 240 }));
+    // Only Thursday overridden; every other day must still use the flat value.
+    const { blocks } = solve(
+      snapshot({ tasks, settings: { ...DEFAULT_SETTINGS, maxDailyFocusByDow: { 4: 420 } } }),
+    );
+    const perDay = new Map<number, number>();
+    for (const b of blocks) {
+      const day = Math.floor((b.startsAt - MONDAY) / 1440);
+      perDay.set(day, (perDay.get(day) ?? 0) + minutesOf(b));
+    }
+    for (const [day, total] of perDay) {
+      const dow = new Date((MONDAY + day * 1440) * 60_000).getUTCDay();
+      const limit = dow === 4 ? 420 : DEFAULT_SETTINGS.maxDailyFocusMin;
+      expect(total).toBeLessThanOrEqual(limit);
+    }
+  });
+
   it("finishes a prerequisite before its dependent starts", () => {
     const tasks = [
       task("draft", { remainingMin: 120, deadlineAt: at(5, 12) }),

@@ -366,6 +366,30 @@ begin
       'deleting a lesson cascades to its cancellations');
   end;
 
+  -- ===== per-weekday focus caps ===========================================
+  update user_settings set max_daily_focus_by_dow = '{"4":420,"6":360}'::jsonb
+    where user_id = u;
+  perform assert_true(
+    (select (max_daily_focus_by_dow->>'4')::int from user_settings where user_id = u) = 420,
+    'a per-weekday focus cap is stored');
+
+  perform assert_rejects(format(
+    $q$update user_settings set max_daily_focus_by_dow = '{"9":300}'::jsonb where user_id = %L$q$, u),
+    'a day of week outside 0-6 is rejected');
+
+  perform assert_rejects(format(
+    $q$update user_settings set max_daily_focus_by_dow = '{"4":5000}'::jsonb where user_id = %L$q$, u),
+    'a focus cap longer than a day is rejected');
+
+  perform assert_rejects(format(
+    $q$update user_settings set max_daily_focus_by_dow = '{"4":"lots"}'::jsonb where user_id = %L$q$, u),
+    'a non-numeric focus cap is rejected');
+
+  update user_settings set max_daily_focus_by_dow = null where user_id = u;
+  perform assert_true(
+    (select max_daily_focus_by_dow is null from user_settings where user_id = u),
+    'clearing the override falls back to the flat cap');
+
   raise notice '────────────────────────────────────────────';
   raise notice 'ALL GUARDRAIL TESTS PASSED';
 end;
