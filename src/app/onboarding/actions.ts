@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { subjectColorToken } from "@/lib/domain/colors";
 import { energyRowsForUser } from "@/lib/domain/energy";
 import { parseClock } from "@/lib/time";
 
@@ -86,7 +87,7 @@ export async function completeOnboarding(raw: unknown) {
       name: s.name,
       level: s.level,
       ib_group: s.level === "CORE" ? null : s.ibGroup,
-      color_token: `subject-${i % 8}`,
+      color_token: subjectColorToken(i),
     })),
     { onConflict: "user_id,name" },
   );

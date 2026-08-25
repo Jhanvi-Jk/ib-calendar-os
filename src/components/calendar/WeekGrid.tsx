@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { cn, TIER_STYLES } from "@/lib/utils";
+import { assignLanes } from "@/lib/calendar/lanes";
 import {
   MIN_PER_DAY,
   addLocalDays,
@@ -22,6 +23,8 @@ export interface CalendarItem {
   tier: ConstraintTier;
   isLocked: boolean;
   subtitle?: string;
+  /** Drives the body tint. Null for sleep, lunch, breaks and untagged events. */
+  subjectId?: string | null;
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,6 +37,7 @@ export function WeekGrid({
   dayEndMin,
   nowMin,
   onSelect,
+  subjectColors,
 }: {
   /** Epoch minute of local midnight on the first rendered day. */
   weekStart: EpochMinute;
@@ -45,6 +49,8 @@ export function WeekGrid({
    *  impure, so the "today" highlight could shift on an unrelated re-render. */
   nowMin: EpochMinute;
   onSelect?: (item: CalendarItem) => void;
+  /** subjectId -> colour token ("subject-3"). Built once by the server. */
+  subjectColors?: Record<string, string>;
 }) {
   // Render an hour beyond the working window on each side so events that spill
   // outside it (a late appointment, an early exam) are still visible.
@@ -73,7 +79,10 @@ export function WeekGrid({
    * and overnight events render correctly.
    */
   const byDay = useMemo(() => {
-    const map = new Map<number, Array<CalendarItem & { topPct: number; heightPct: number }>>();
+    const map = new Map<
+      number,
+      Array<CalendarItem & { topPct: number; heightPct: number; lane: number; lanes: number }>
+    >();
     for (const day of days) {
       const dayEnd = addLocalDays(day.startsAt, 1, timezone);
       const inDay = items
@@ -89,16 +98,38 @@ export function WeekGrid({
 
           const top = ((startMin - windowStart) / visibleMinutes) * 100;
           const height = ((endMin - startMin) / visibleMinutes) * 100;
-          return { ...it, topPct: top, heightPct: height };
+          return { ...it, startMin, endMin, topPct: top, heightPct: height };
         })
-        .filter((it) => it.heightPct > 0 && it.topPct < 100)
-        .sort((a, b) => a.topPct - b.topPct);
-      map.set(day.index, inDay);
+        .filter((it) => it.heightPct > 0 && it.topPct < 100);
+      // Anything simultaneous gets its own column. Drawn full-width they were
+      // painted on top of each other, so a lesson could vanish behind a study
+      // block and the hour looked free.
+      map.set(day.index, assignLanes(inDay).sort((a, b) => a.topPct - b.topPct));
     }
     return map;
   }, [days, items, timezone, windowStart, visibleMinutes]);
 
   const todayKey = startOfLocalDay(nowMin, timezone);
+
+  /**
+   * Open near the part of the day you are actually in.
+   *
+   * The grid is taller than the viewport, so without this it opens at 06:00
+   * and every visit starts with a scroll past hours that have already gone.
+   */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const nowInDay = minutesIntoLocalDay(nowMin, timezone);
+    // An hour of lead-in, so "now" is not jammed against the top edge.
+    const target = Math.min(
+      Math.max(nowInDay - 60, windowStart),
+      Math.max(windowStart, windowEnd - 60),
+    );
+    const fraction = (target - windowStart) / visibleMinutes;
+    el.scrollTop = fraction * (el.scrollHeight - el.clientHeight === 0 ? 0 : el.scrollHeight);
+  }, [nowMin, timezone, windowStart, windowEnd, visibleMinutes]);
 
   return (
     // No forced minimum width: a fixed 52rem meant a narrow window clipped
@@ -107,8 +138,18 @@ export function WeekGrid({
     // week losing days.
     <div className="overflow-x-auto">
       <div className="min-w-0">
+        {/*
+          The week scrolls inside its own box rather than taking the page with
+          it, so the day headings stay put while you move through the hours —
+          the thing every calendar does and the reason you can tell which
+          column you are looking at halfway down a Thursday.
+        */}
+        <div
+          ref={scrollRef}
+          className="max-h-[min(70vh,44rem)] overflow-y-auto overscroll-contain"
+        >
         {/* header */}
-        <div className="grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-border sm:grid-cols-[3.5rem_repeat(7,1fr)]">
+        <div className="sticky top-0 z-40 grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-border bg-surface sm:grid-cols-[3.5rem_repeat(7,1fr)]">
           <div />
           {days.map((d) => {
             const isToday = d.startsAt === todayKey;
@@ -161,21 +202,38 @@ export function WeekGrid({
 
               {(byDay.get(d.index) ?? []).map((it) => {
                 const tier = TIER_STYLES[it.tier];
+                // Two questions, two channels: the left border says how
+                // immovable this is, the body tint says what subject it is.
+                // A Maths lesson and a Maths revision block share a hue while
+                // still reading as Tier 1 and Tier 3.
+                const token = it.subjectId ? subjectColors?.[it.subjectId] : null;
                 return (
                   <button
                     key={`${it.id}-${d.index}`}
                     onClick={() => onSelect?.(it)}
                     className={cn(
-                      "absolute inset-x-0.5 overflow-hidden rounded-md px-1 py-1 text-left text-xs sm:inset-x-1 sm:px-2",
+                      "absolute overflow-hidden rounded-md px-1 py-1 text-left text-xs sm:px-2",
                       "border-l-[3px] transition-shadow hover:shadow-md",
-                      it.variant === "event"
-                        ? "bg-surface-raised"
-                        : "bg-tier-3-soft/70 backdrop-blur-[1px]",
+                      // Only fall back to the flat tier fill when there is no
+                      // subject to colour by.
+                      token
+                        ? "backdrop-blur-[1px]"
+                        : it.variant === "event"
+                          ? "bg-surface-raised"
+                          : "bg-tier-3-soft/70 backdrop-blur-[1px]",
                     )}
                     style={{
                       top: `${it.topPct}%`,
                       height: `max(1.15rem, ${it.heightPct}%)`,
+                      // Columns within the overlap cluster. The 2px gutter is
+                      // what makes two adjacent blocks read as two things.
+                      left: `calc(${(it.lane / it.lanes) * 100}% + 2px)`,
+                      width: `calc(${100 / it.lanes}% - 4px)`,
                       borderLeftColor: `var(--tier-${it.tier})`,
+                      ...(token ? { backgroundColor: `var(--${token}-soft)` } : {}),
+                      // Later items sit above earlier ones so a short block
+                      // inside a long lesson stays clickable.
+                      zIndex: it.lane + 1,
                     }}
                     title={`${it.title} · ${formatRange(it.startsAt, it.endsAt, timezone)}`}
                   >
@@ -193,6 +251,7 @@ export function WeekGrid({
               })}
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

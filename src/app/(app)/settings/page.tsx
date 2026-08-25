@@ -1,5 +1,6 @@
 import { SettingsClient } from "./SettingsClient";
 import { TimetableEditor } from "@/components/settings/TimetableEditor";
+import { ReminderSettings } from "@/components/settings/ReminderSettings";
 import { getSubjects, getTimetableEntries, getUserContext } from "@/lib/data/queries";
 import { getAcademicDates } from "@/lib/data/planning";
 import { getStudyQuotas } from "@/lib/data/quotas";
@@ -31,6 +32,9 @@ export default async function SettingsPage() {
         subjects={subjects}
         anchorMonday={ctx?.timetableAnchorMonday ?? null}
       />
+
+      <ReminderSettings />
+
       <SettingsClient dates={dates} subjects={subjects} quotas={quotas} />
     </div>
   );

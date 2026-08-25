@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTimetableEntries, getUserContext } from "@/lib/data/queries";
 import { getRunningTimer } from "@/lib/data/analytics";
+import { getUpcomingBlocks } from "@/lib/data/reminders";
+import { ReminderScheduler } from "@/components/ReminderScheduler";
 import { localDateKey, toEpochMinute } from "@/lib/time";
 import { RunningTimerBar } from "@/components/RunningTimerBar";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -19,10 +21,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [ctx, timer, timetable] = await Promise.all([
+  const [ctx, timer, timetable, upcoming] = await Promise.all([
     getUserContext(),
     getRunningTimer(),
     getTimetableEntries(),
+    getUpcomingBlocks(),
   ]);
   // proxy.ts already blocks anonymous requests; this catches the narrower case
   // of a signed-in user who never finished onboarding.
@@ -65,6 +68,8 @@ export default async function AppLayout({
         Reading the clock during render would make the palette's date parsing
         drift on unrelated re-renders — the same rule as `nowMin` on WeekGrid.
       */}
+      {/* Renders nothing; arms notification timers for the next few hours. */}
+      <ReminderScheduler blocks={upcoming} />
       <CommandPalette
         todayKey={localDateKey(toEpochMinute(new Date()), ctx.timezone)}
         timetableEntries={timetable.map((e) => ({

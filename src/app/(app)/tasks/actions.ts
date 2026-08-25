@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { nextFreeSubjectColor } from "@/lib/domain/colors";
 import { autoReplanIfSafe } from "@/app/(app)/calendar/actions";
 
 const TaskInput = z.object({
@@ -127,12 +128,20 @@ export async function createSubject(raw: unknown) {
   // compare differently — "Maths AA " and "Maths AA " are not the same row.
   const name = s.name.trim();
 
+  // "neutral" is not a colour the stylesheet defines, so a subject added after
+  // onboarding used to come out uncoloured on the calendar. Take the lowest
+  // hue nobody has yet.
+  const { data: existing } = await supabase
+    .from("subjects")
+    .select("color_token")
+    .eq("user_id", user.id);
+
   const { error } = await supabase.from("subjects").insert({
     user_id: user.id,
     name,
     level: s.level,
     ib_group: s.level === "CORE" ? null : (s.ibGroup ?? 1),
-    color_token: "neutral",
+    color_token: nextFreeSubjectColor((existing ?? []).map((r) => r.color_token)),
   });
   if (error) {
     // The uniqueness constraint is on the NAME alone, not name+level. The

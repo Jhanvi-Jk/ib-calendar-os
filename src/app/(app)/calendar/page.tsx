@@ -85,6 +85,7 @@ export default async function CalendarPage({
       variant: "event" as const,
       tier: e.tier,
       isLocked: e.isLocked,
+      subjectId: e.subjectId,
     })),
     ...blocksThisWeek.map((b) => ({
       id: b.id,
@@ -94,6 +95,7 @@ export default async function CalendarPage({
       variant: "block" as const,
       tier: 3 as ConstraintTier,
       isLocked: b.isLocked,
+      subjectId: b.subjectId ?? null,
     })),
   ];
 
@@ -131,6 +133,9 @@ export default async function CalendarPage({
       */}
       <div className="relative rounded-app border border-border bg-surface">
         <WeekGrid
+          subjectColors={Object.fromEntries(
+            subjects.map((s) => [s.id, s.colorToken]),
+          )}
           weekStart={weekStart}
           items={items}
           timezone={timezone}
