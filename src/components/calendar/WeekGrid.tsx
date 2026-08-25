@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { cn, TIER_STYLES } from "@/lib/utils";
 import { assignLanes } from "@/lib/calendar/lanes";
 import {
   ZOOM_LEVELS,
+  clampZoomIndex,
   gridStepMin,
+  setZoomIndex,
   subscribeZoom,
   zoomServerSnapshot,
   zoomSnapshot,
@@ -129,24 +131,102 @@ export function WeekGrid({
   const todayKey = startOfLocalDay(nowMin, timezone);
 
   /**
-   * Open near the part of the day you are actually in.
+   * Trackpad zoom, anchored to the pointer.
    *
-   * The grid is taller than the viewport, so without this it opens at 06:00
-   * and every visit starts with a scroll past hours that have already gone.
+   * A macOS pinch arrives as a wheel event with ctrlKey set, so the same
+   * handler serves pinch and ctrl-scroll. Plain scrolling is left alone —
+   * hijacking it would break the one gesture people expect to just work.
+   *
+   * The anchor is the point: zooming without it makes the grid lurch, because
+   * the same scrollTop means a different time once an hour changes height.
+   * The minute under the cursor is recorded before the change and restored
+   * after layout, so the row you are pointing at stays put.
    */
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const pendingAnchor = useRef<{ min: number; clientY: number } | null>(null);
+  const wheelAccum = useRef(0);
+
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+    // Bound to the grid, not the scroll container: the anchor is then derived
+    // from the grid's own rect, which is scroll-independent. Reading
+    // scrollTop here would make this effect a consumer of the scroll ref and
+    // block the two effects below from writing it.
+    const body = bodyRef.current;
+    if (!body) return;
+
+    const onWheel = (event: WheelEvent) => {
+      // macOS pinch arrives as a wheel event with ctrlKey, so one handler
+      // serves pinch and ctrl-scroll. Plain scrolling is left alone.
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+
+      wheelAccum.current += event.deltaY;
+      // A trackpad emits many small deltas; stepping on each would race
+      // through every level in one flick.
+      if (Math.abs(wheelAccum.current) < 40) return;
+      const direction = wheelAccum.current > 0 ? -1 : 1;
+      wheelAccum.current = 0;
+
+      const current = zoomSnapshot();
+      const next = clampZoomIndex(current + direction);
+      if (next === current) return;
+
+      // Measured, not derived from rem — a rem is not a fixed pixel count.
+      const rect = body.getBoundingClientRect();
+      const fraction = (event.clientY - rect.top) / (rect.height || 1);
+      pendingAnchor.current = {
+        min: windowStart + fraction * visibleMinutes,
+        clientY: event.clientY,
+      };
+      setZoomIndex(next);
+    };
+
+    body.addEventListener("wheel", onWheel, { passive: false });
+    return () => body.removeEventListener("wheel", onWheel);
+  }, [windowStart, visibleMinutes]);
+
+  /**
+   * The one place that moves the scroll position.
+   *
+   * Two effects both writing scrollTop fight each other and, in a React
+   * Compiler build, are rejected outright. There are only two reasons to move
+   * it — restore the pinch anchor, or open near the current hour on first
+   * paint — so they live together and the anchor wins.
+   */
+  const hasOpened = useRef(false);
+  useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    const body = bodyRef.current;
+    if (!scroller || !body) return;
+
+    const bodyH = body.offsetHeight || 1;
+    const headerH = headerRef.current?.offsetHeight ?? 0;
+    const anchor = pendingAnchor.current;
+
+    // Zoom: put the minute that was under the cursor back under the cursor.
+    // Without this the grid lurches, because the same scrollTop means a
+    // different time once an hour changes height.
+    if (anchor) {
+      pendingAnchor.current = null;
+      const fraction = (anchor.min - windowStart) / visibleMinutes;
+      const cursorOffset = anchor.clientY - scroller.getBoundingClientRect().top;
+      scroller.scrollTop = fraction * bodyH + headerH - cursorOffset;
+      return;
+    }
+
+    // First paint: the grid is taller than the viewport, so without this every
+    // visit starts at 06:50 and scrolls past hours already gone.
+    if (hasOpened.current) return;
+    hasOpened.current = true;
     const nowInDay = minutesIntoLocalDay(nowMin, timezone);
-    // An hour of lead-in, so "now" is not jammed against the top edge.
     const target = Math.min(
       Math.max(nowInDay - 60, windowStart),
       Math.max(windowStart, windowEnd - 60),
     );
-    const fraction = (target - windowStart) / visibleMinutes;
-    el.scrollTop = fraction * (el.scrollHeight - el.clientHeight === 0 ? 0 : el.scrollHeight);
-  }, [nowMin, timezone, windowStart, windowEnd, visibleMinutes]);
+    scroller.scrollTop = ((target - windowStart) / visibleMinutes) * bodyH;
+  }, [hourRem, nowMin, timezone, windowStart, windowEnd, visibleMinutes]);
 
   return (
     // No forced minimum width: a fixed 52rem meant a narrow window clipped
@@ -166,7 +246,7 @@ export function WeekGrid({
           className="max-h-[min(70vh,44rem)] overflow-y-auto overscroll-contain"
         >
         {/* header */}
-        <div className="sticky top-0 z-40 grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-border bg-surface sm:grid-cols-[3.5rem_repeat(7,1fr)]">
+        <div ref={headerRef} className="sticky top-0 z-40 grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] border-b border-border bg-surface sm:grid-cols-[3.5rem_repeat(7,1fr)]">
           <div />
           {days.map((d) => {
             const isToday = d.startsAt === todayKey;
@@ -191,6 +271,7 @@ export function WeekGrid({
 
         {/* body */}
         <div
+          ref={bodyRef}
           className="relative grid grid-cols-[2rem_repeat(7,minmax(0,1fr))] sm:grid-cols-[3.5rem_repeat(7,1fr)]"
           style={{ height: `calc(${visibleMinutes / 60} * ${hourRem}rem)` }}
         >
