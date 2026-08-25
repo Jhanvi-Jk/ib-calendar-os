@@ -148,3 +148,45 @@ describe("attainment", () => {
     expect(Number.isFinite(r.weeks[0].attainment)).toBe(true);
   });
 });
+
+describe("the week you are still in", () => {
+  const row = (weekMonday: string, doneMin: number) => ({
+    quotaId: "q1",
+    label: "Physics HL study",
+    weekMonday,
+    targetMin: 240,
+    doneMin,
+  });
+
+  it("does not call the current week missed", () => {
+    // Monday morning is not a failure. Scoring a live week against a whole
+    // week's target told a student who had just set a target that they had
+    // already missed it.
+    const r = quotaAttainment([row("2026-08-24", 0)], {
+      currentWeekMonday: "2026-08-24",
+    });
+    expect(r.weeks[0].status).toBe("in_progress");
+  });
+
+  it("still lets the current week be hit early", () => {
+    const r = quotaAttainment([row("2026-08-24", 240)], {
+      currentWeekMonday: "2026-08-24",
+    });
+    expect(r.weeks[0].status).toBe("hit");
+  });
+
+  it("keeps the current week out of the missed-weeks headline", () => {
+    const r = quotaAttainment(
+      [row("2026-08-24", 0), row("2026-08-17", 0)],
+      { currentWeekMonday: "2026-08-24" },
+    );
+    expect(r.headline).not.toMatch(/2 weeks running/);
+  });
+
+  it("still judges a week that has finished", () => {
+    const r = quotaAttainment([row("2026-08-17", 0)], {
+      currentWeekMonday: "2026-08-24",
+    });
+    expect(r.weeks[0].status).toBe("missed");
+  });
+});

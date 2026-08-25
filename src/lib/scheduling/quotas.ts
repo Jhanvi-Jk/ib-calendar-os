@@ -122,7 +122,7 @@ export interface QuotaWeekResult {
   doneMin: Minutes;
   /** done / target, capped at 1. */
   attainment: number;
-  status: "hit" | "close" | "missed";
+  status: "hit" | "close" | "missed" | "in_progress";
 }
 
 export interface QuotaReport {
@@ -135,6 +135,20 @@ export interface QuotaReport {
 const HIT_AT = 0.9;
 const CLOSE_AT = 0.6;
 
+/**
+ * A week still being lived cannot have been missed.
+ *
+ * Judging the current week against a full week's target means Monday morning
+ * always reads as failure. Callers pass the current week so it is reported as
+ * under way instead — a target can still be *hit* early, it just cannot be
+ * declared lost while there are days left to do it in.
+ */
+function statusFor(attainment: number, isCurrent: boolean): QuotaWeekResult["status"] {
+  if (attainment >= HIT_AT) return "hit";
+  if (isCurrent) return "in_progress";
+  return attainment >= CLOSE_AT ? "close" : "missed";
+}
+
 export function quotaAttainment(
   rows: Array<{
     quotaId: string;
@@ -143,13 +157,14 @@ export function quotaAttainment(
     targetMin: Minutes;
     doneMin: Minutes;
   }>,
+  options: { currentWeekMonday?: string } = {},
 ): QuotaReport {
   const weeks: QuotaWeekResult[] = rows.map((r) => {
     const attainment = r.targetMin === 0 ? 0 : Math.min(1, r.doneMin / r.targetMin);
     return {
       ...r,
       attainment: Math.round(attainment * 100) / 100,
-      status: attainment >= HIT_AT ? "hit" : attainment >= CLOSE_AT ? "close" : "missed",
+      status: statusFor(attainment, r.weekMonday === options.currentWeekMonday),
     };
   });
 

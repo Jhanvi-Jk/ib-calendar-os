@@ -343,8 +343,18 @@ function collectCandidates(args: {
 
     // A task the user marked unsplittable needs one contiguous run; there is
     // no point offering it a shorter window.
+    //
+    // For splittable work take an EVEN share rather than greedily filling
+    // maxChunk. Greedy chunking strands whatever does not divide evenly:
+    // Physics at 240min in 75min sessions gave 3x75 plus a 15-minute stub, and
+    // French at 150 in 35s gave 4x35 plus 10. The final-stub escape below then
+    // waved those through, so 23% of a real plan came out under the 25-minute
+    // floor — and for recurring quota work that repeats every week, forever.
+    // Spreading the remainder keeps every session worth sitting down for.
+    const sessions = Math.max(1, Math.ceil(remaining / maxChunk));
+    const evenShare = Math.ceil(remaining / sessions);
     const wanted = task.splittable
-      ? Math.min(remaining, maxChunk, dayRoom)
+      ? Math.min(remaining, evenShare, dayRoom)
       : remaining;
 
     if (length(usable) < wanted) continue;
@@ -353,6 +363,16 @@ function collectCandidates(args: {
     // last 10 minutes of a task forever.
     const isFinalStub = remaining <= minChunk;
     if (!isFinalStub && wanted < minChunk) continue;
+
+    // Clamping to the day's leftover room can itself create an orphan: 66
+    // minutes of Maths into a day with 60 free buys one session now and
+    // strands 6 minutes that no later day will accept. Leave the slot empty
+    // and keep the remainder whole — if nothing can take it, that is a real
+    // shortfall and belongs in the infeasibility report, not in a 6-minute
+    // block the student is expected to sit down for.
+    if (task.splittable && wanted < remaining && remaining - wanted < minChunk) {
+      continue;
+    }
 
     // Try grid-aligned starts inside this slot rather than only its left edge,
     // so a morning-peak hour is reachable even when the slot opens at 06:00.

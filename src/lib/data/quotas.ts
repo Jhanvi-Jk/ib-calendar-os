@@ -94,6 +94,11 @@ export async function ensureQuotaTasks(horizonDays = 21): Promise<number> {
       max_chunk_min: s.maxChunkMin,
       cognitive_load: s.cognitiveLoad,
       priority_pin: s.priorityPin,
+      // A quota is a rate for a PARTICULAR week. Without an earliest start the
+      // solver treats next month's hours as available today and cheerfully
+      // schedules three weeks of French drilling this afternoon, which is not
+      // what spacing a language out over time means.
+      earliest_start_at: new Date(`${s.quotaWeek}T00:00:00Z`).toISOString(),
       // End of the quota week, local. 23:59 rather than midnight so the task
       // is due at the close of Sunday, not at its start.
       deadline_at: new Date(`${s.deadlineKey}T23:59:00Z`).toISOString(),
@@ -121,11 +126,17 @@ export const getQuotaReport = cache(async (weeks = 4): Promise<QuotaReport> => {
   const todayKey = localDateKey(nowMin, ctx.timezone);
   const firstWeek = addDaysKey(mondayOf(todayKey), -7 * (weeks - 1));
 
+  const currentWeek = mondayOf(todayKey);
+
   const { data, error } = await supabase
     .from("tasks")
     .select("quota_week, estimate_min, actual_min, study_quotas(id, label)")
     .not("quota_id", "is", null)
     .gte("quota_week", firstWeek)
+    // Weeks that have not started yet are not results. Without this bound the
+    // panel scored every future week 0-of-target and announced that a quota
+    // seeded twenty minutes ago had "missed its target 3 weeks running".
+    .lte("quota_week", currentWeek)
     .order("quota_week", { ascending: false });
 
   if (error) return quotaAttainment([]);
@@ -141,5 +152,6 @@ export const getQuotaReport = cache(async (weeks = 4): Promise<QuotaReport> => {
         doneMin: t.actual_min,
       };
     }),
+    { currentWeekMonday: currentWeek },
   );
 });

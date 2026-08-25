@@ -15,6 +15,9 @@ const STATUS: Record<QuotaWeekResult["status"], { label: string; chip: string }>
   hit: { label: "Hit", chip: "bg-thriving/15 text-thriving" },
   close: { label: "Close", chip: "bg-strained/15 text-strained" },
   missed: { label: "Missed", chip: "bg-danger-soft text-danger" },
+  // Neutral by design: the week is still running, so this is a statement of
+  // fact, not a verdict.
+  in_progress: { label: "This week", chip: "bg-surface-sunken text-muted" },
 };
 
 export function QuotaAttainment({ report }: { report: QuotaReport }) {

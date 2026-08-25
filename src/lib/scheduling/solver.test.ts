@@ -181,6 +181,40 @@ describe("solver — guarantees", () => {
     }
   });
 
+  it("never emits a block shorter than the minimum session", () => {
+    // Quota-shaped work: a weekly target that does not divide evenly by the
+    // session length. Greedy chunking used to take maxChunk until whatever was
+    // left could not fill one, then wave the remainder through as a "final
+    // stub" — 240 in 75s became 75+75+75+15, and a real plan came out with 18
+    // of 78 blocks under the floor.
+    const tasks = [
+      task("physics", { remainingMin: 240, minChunkMin: 45, maxChunkMin: 75 }),
+      task("french", { remainingMin: 150, minChunkMin: 25, maxChunkMin: 35 }),
+      task("maths", { remainingMin: 330, minChunkMin: 60, maxChunkMin: 75 }),
+    ];
+    const { blocks } = solve(snapshot({ tasks }));
+
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const b of blocks) {
+      const floor = Math.max(
+        DEFAULT_SETTINGS.minBlockMin,
+        tasks.find((t) => t.id === b.taskId)!.minChunkMin,
+      );
+      expect(minutesOf(b)).toBeGreaterThanOrEqual(floor);
+    }
+  });
+
+  it("spreads a quota evenly instead of stranding the remainder", () => {
+    // 240 minutes in sessions of at most 75 needs four sittings. Four even
+    // sittings of 60 beat three of 75 and a 15-minute orphan.
+    const tasks = [task("physics", { remainingMin: 240, minChunkMin: 45, maxChunkMin: 75 })];
+    const { blocks } = solve(snapshot({ tasks }));
+
+    expect(totalPlaced(blocks)).toBe(240);
+    const sizes = blocks.map(minutesOf);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+  });
+
   it("finishes a prerequisite before its dependent starts", () => {
     const tasks = [
       task("draft", { remainingMin: 120, deadlineAt: at(5, 12) }),

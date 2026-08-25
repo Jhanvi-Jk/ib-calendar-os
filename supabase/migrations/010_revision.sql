@@ -28,13 +28,24 @@ begin
 end
 $guard$;
 
-create type revision_origin as enum (
-  'weak_spot',   -- flagged after a bad test or a lesson that did not land
-  'syllabus',    -- routine coverage of a syllabus topic
-  'manual'
-);
+-- Re-runnable. Postgres has no `create type if not exists`, and re-running a
+-- migration is a normal thing to do when you are unsure whether it took: the
+-- bare form aborts the whole script on its first statement with "type
+-- revision_origin already exists", which reads like damage when nothing has
+-- happened at all.
+do $revision_origin$
+begin
+  create type revision_origin as enum (
+    'weak_spot',   -- flagged after a bad test or a lesson that did not land
+    'syllabus',    -- routine coverage of a syllabus topic
+    'manual'
+  );
+exception
+  when duplicate_object then null;
+end
+$revision_origin$;
 
-create table revision_topics (
+create table if not exists revision_topics (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references auth.users (id) on delete cascade,
   subject_id   uuid references public.subjects (id) on delete cascade,
@@ -55,9 +66,10 @@ create table revision_topics (
   updated_at   timestamptz not null default now()
 );
 
-create index revision_topics_user_active_idx
+create index if not exists revision_topics_user_active_idx
   on revision_topics (user_id, subject_id) where is_active;
 
+drop trigger if exists revision_topics_updated_at on revision_topics;
 create trigger revision_topics_updated_at
   before update on revision_topics
   for each row execute function public.set_updated_at();
@@ -69,7 +81,7 @@ create trigger revision_topics_updated_at
 -- separately because it is anchored to the exam session rather than to the
 -- trigger date.
 -- ---------------------------------------------------------------------------
-create table revision_passes (
+create table if not exists revision_passes (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users (id) on delete cascade,
   topic_id       uuid not null references revision_topics (id) on delete cascade,
@@ -93,13 +105,15 @@ create table revision_passes (
   unique (topic_id, pass_index)
 );
 
-create index revision_passes_due_idx on revision_passes (user_id, due_on);
+create index if not exists revision_passes_due_idx on revision_passes (user_id, due_on);
 
 alter table revision_topics  enable row level security;
 alter table revision_passes  enable row level security;
 
+drop policy if exists revision_topics_owner on revision_topics;
 create policy revision_topics_owner on revision_topics
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists revision_passes_owner on revision_passes;
 create policy revision_passes_owner on revision_passes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

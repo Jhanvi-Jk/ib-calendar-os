@@ -117,7 +117,7 @@ function headlineFor(
   const overdue = slipped.filter((s) => s.reason === "overdue").length;
 
   if (overdue > 0) {
-    return `${overdue} ${overdue === 1 ? "thing is" : "things are"} past their deadline. Decide what happens to ${overdue === 1 ? "it" : "them"} before planning anything new.`;
+    return `${overdue} ${overdue === 1 ? "thing is" : "things are"} past ${overdue === 1 ? "its" : "their"} deadline. Decide what happens to ${overdue === 1 ? "it" : "them"} before planning anything new.`;
   }
   if (followThrough === null) {
     return "Nothing was planned last week, so there is nothing to compare against. Worth setting a plan you can actually check yourself against.";

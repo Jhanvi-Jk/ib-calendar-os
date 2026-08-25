@@ -71,9 +71,19 @@ export async function getReviewData(
 
     for (const block of blocks ?? []) {
       const startMin = toEpochMinute(new Date(block.starts_at));
+      const endMin = toEpochMinute(new Date(block.ends_at));
+
+      // Only work whose time has already passed counts towards momentum.
+      //
+      // A block planned for 21:00 is not a block you have failed to do at
+      // 19:30. Counting it told a student who had just pressed "Generate
+      // plan" that they were Strained at 0% of a plan that had not started
+      // yet — the same fabricated-score problem `hasData` was added to fix,
+      // arriving through a different door.
+      if (endMin > nowMin) continue;
+
       const key = localDateKey(startMin, timezone);
-      const minutes = toEpochMinute(new Date(block.ends_at)) - startMin;
-      plannedByDay.set(key, (plannedByDay.get(key) ?? 0) + minutes);
+      plannedByDay.set(key, (plannedByDay.get(key) ?? 0) + (endMin - startMin));
     }
   }
 
