@@ -310,13 +310,23 @@ export function WeekGrid({
                 // A Maths lesson and a Maths revision block share a hue while
                 // still reading as Tier 1 and Tier 3.
                 const token = it.subjectId ? subjectColors?.[it.subjectId] : null;
+                // A 10-minute registration slot is ~0.6rem tall at default
+                // zoom. Forcing it to a readable 1.15rem made it TALLER than
+                // the ten minutes it represents, so it bled up behind the
+                // lesson above and showed as a clipped rounded corner. Below
+                // the readable threshold it becomes a plain bar at its true
+                // height; the title stays in the tooltip, and zooming in gives
+                // it room to become a card again.
+                const renderedRem = (it.heightPct / 100) * (visibleMinutes / 60) * hourRem;
+                const isSliver = renderedRem < 1.15;
                 return (
                   <button
                     key={`${it.id}-${d.index}`}
                     onClick={() => onSelect?.(it)}
                     className={cn(
-                      "absolute overflow-hidden rounded-lg px-1.5 py-1 text-left text-xs sm:px-2",
+                      "absolute overflow-hidden text-left text-xs",
                       "border-l-4 transition-shadow hover:shadow-md hover:brightness-110",
+                      isSliver ? "rounded-sm px-1 py-0" : "rounded-lg px-1.5 py-1 sm:px-2",
                       // Only fall back to the flat tier fill when there is no
                       // subject to colour by.
                       token
@@ -327,7 +337,9 @@ export function WeekGrid({
                     )}
                     style={{
                       top: `${it.topPct}%`,
-                      height: `max(1.15rem, ${it.heightPct}%)`,
+                      // No artificial minimum for slivers: the whole bug was a
+                      // block drawn taller than its own duration.
+                      height: isSliver ? `${it.heightPct}%` : `max(1.15rem, ${it.heightPct}%)`,
                       // Columns within the overlap cluster. The 2px gutter is
                       // what makes two adjacent blocks read as two things.
                       left: `calc(${(it.lane / it.lanes) * 100}% + 2px)`,
@@ -348,14 +360,16 @@ export function WeekGrid({
                     }}
                     title={`${it.title} · ${formatRange(it.startsAt, it.endsAt, timezone)}`}
                   >
-                    <div className="flex items-center gap-1 font-medium text-text">
-                      {it.isLocked && (
-                        <span aria-label="Fixed — cannot be moved" className="opacity-50">
-                          🔒
-                        </span>
-                      )}
-                      <span className="truncate">{it.title}</span>
-                    </div>
+                    {!isSliver && (
+                      <div className="flex items-center gap-1 font-medium text-text">
+                        {it.isLocked && (
+                          <span aria-label="Fixed — cannot be moved" className="opacity-50">
+                            🔒
+                          </span>
+                        )}
+                        <span className="truncate">{it.title}</span>
+                      </div>
+                    )}
                     {it.heightPct > 6 && (
                       <div className={cn("truncate", tier.chip, "bg-transparent px-0")}>
                         {it.subtitle ?? formatRange(it.startsAt, it.endsAt, timezone)}
