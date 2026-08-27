@@ -7,6 +7,7 @@ import { ReminderScheduler } from "@/components/ReminderScheduler";
 import { localDateKey, toEpochMinute } from "@/lib/time";
 import { RunningTimerBar } from "@/components/RunningTimerBar";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ChatPanel } from "@/components/ChatPanel";
 
 const NAV = [
   { href: "/calendar", label: "Calendar" },
@@ -70,6 +71,14 @@ export default async function AppLayout({
       */}
       {/* Renders nothing; arms notification timers for the next few hours. */}
       <ReminderScheduler blocks={upcoming} />
+      <ChatPanel
+        todayKey={localDateKey(toEpochMinute(new Date()), ctx.timezone)}
+        entries={timetable.map((e) => ({
+          id: e.id,
+          label: e.label,
+          dayOfWeek: e.dayOfWeek,
+        }))}
+      />
       <CommandPalette
         todayKey={localDateKey(toEpochMinute(new Date()), ctx.timezone)}
         timetableEntries={timetable.map((e) => ({
