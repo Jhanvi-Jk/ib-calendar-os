@@ -70,6 +70,7 @@ export function CalendarToolbar({
   const [pending, startTransition] = useTransition();
   const [openPanel, setOpenPanel] = useState<"none" | "runway" | "blocked">("none");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const dateFmt = new Intl.DateTimeFormat("en-GB", {
     timeZone: timezone,
@@ -79,13 +80,27 @@ export function CalendarToolbar({
   });
   const formatDate = (key: string) => dateFmt.format(new Date(`${key}T12:00:00Z`));
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>) {
+  function run(
+    action: () => Promise<{
+      ok: boolean;
+      error?: string;
+      unchanged?: boolean;
+      message?: string;
+    }>,
+  ) {
     setError("");
+    setNotice("");
     startTransition(async () => {
       const res = await action();
       if (!res.ok) {
         setError(res.error ?? "Something went wrong.");
         return;
+      }
+      // A re-plan that finds nothing to change used to look exactly like a
+      // broken button: the action returned a message and the UI dropped it on
+      // the floor. Say so instead.
+      if (res.unchanged) {
+        setNotice(res.message ?? "Your plan is already up to date.");
       }
       // revalidatePath alone leaves the client Router Cache holding whatever
       // it rendered before the action. Refreshing explicitly is what stops a
@@ -161,7 +176,7 @@ export function CalendarToolbar({
       </div>
 
       {/* ---- one-line alerts, expandable --------------------------------- */}
-      {(runwayAlert || infeasibility.length > 0 || error || isStale) && (
+      {(runwayAlert || infeasibility.length > 0 || error || notice || isStale) && (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {isStale && !pending && (
             <span className="text-muted">Plan is out of date.</span>
@@ -195,6 +210,7 @@ export function CalendarToolbar({
           )}
 
           {error && <span className="text-danger">{error}</span>}
+          {notice && <span className="text-muted">{notice}</span>}
         </div>
       )}
 
