@@ -93,6 +93,12 @@
   --subject-9: oklch(55% 0.14 340);
   --subject-9-soft: oklch(91% 0.075 340);
 
+  /* --- now line ---------------------------------------------------------
+     The "you are here" marker. White as asked for, but only where white is
+     the high-contrast choice: on the light surface it would be invisible, so
+     the token flips to near-black there. Same job, both themes.          */
+  --now-line: oklch(28% 0.02 265);
+
   /* --- calendar geometry ---------------------------------------------- */
   --hour-height: 3.5rem;
   --radius: 0.625rem;
@@ -125,6 +131,7 @@
   --tier-5: oklch(72% 0.05 300);
   --tier-5-soft: oklch(30% 0.03 300);
 
+  --now-line: oklch(100% 0 0);
   /* --- subject identity: darker tints, lighter accents --------------- */
   --subject-0: oklch(78% 0.15 20);
   --subject-0-soft: oklch(34% 0.085 20);
@@ -184,6 +191,7 @@
     --tier-4-soft: oklch(30% 0.05 175);
     --tier-5: oklch(72% 0.05 300);
     --tier-5-soft: oklch(30% 0.03 300);
+    --now-line: oklch(100% 0 0);
     /* Subject identity must be redefined here too: a system-dark user with
        no explicit data-theme would otherwise get the light tints. */
     --subject-0: oklch(78% 0.15 20);

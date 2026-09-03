@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { cn, TIER_STYLES } from "@/lib/utils";
 import { assignLanes } from "@/lib/calendar/lanes";
+import { minuteSnapshot, subscribeMinute } from "@/lib/calendar/clock";
 import {
   ZOOM_LEVELS,
   clampZoomIndex,
@@ -128,7 +129,23 @@ export function WeekGrid({
     return map;
   }, [days, items, timezone, windowStart, visibleMinutes]);
 
-  const todayKey = startOfLocalDay(nowMin, timezone);
+  /**
+   * A ticking "now", seeded from the server render.
+   *
+   * The server snapshot is the nowMin passed down as a prop, so the first
+   * paint matches the markup; after hydration the store takes over and the
+   * line moves on its own. A marker that only advances when you navigate
+   * quietly lies about where you are in the day.
+   */
+  const liveNowMin = useSyncExternalStore(subscribeMinute, minuteSnapshot, () => nowMin);
+
+  const todayKey = startOfLocalDay(liveNowMin, timezone);
+  const nowInDay = minutesIntoLocalDay(liveNowMin, timezone);
+  // Only drawn when the current minute is actually inside the rendered window.
+  const nowPct =
+    nowInDay >= windowStart && nowInDay <= windowEnd
+      ? ((nowInDay - windowStart) / visibleMinutes) * 100
+      : null;
 
   /**
    * Trackpad zoom, anchored to the pointer.
@@ -290,6 +307,28 @@ export function WeekGrid({
 
           {days.map((d) => (
             <div key={d.index} className="relative border-l border-border">
+              {/*
+                The "you are here" line, drawn only on today's column — the same
+                convention every calendar uses, because a line across the whole
+                week says nothing about which day you are in. It sits above the
+                blocks and ignores clicks, so it never steals a target.
+              */}
+              {nowPct !== null && d.startsAt === todayKey && (
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-30 flex items-center"
+                  style={{ top: `${nowPct}%` }}
+                  aria-hidden
+                >
+                  <span
+                    className="-ml-[3px] h-[7px] w-[7px] shrink-0 rounded-full"
+                    style={{ backgroundColor: "var(--now-line)" }}
+                  />
+                  <span
+                    className="h-px flex-1"
+                    style={{ backgroundColor: "var(--now-line)" }}
+                  />
+                </div>
+              )}
               {rules.map(({ min: m, isHour }) => (
                 <div
                   key={m}

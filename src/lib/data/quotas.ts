@@ -54,6 +54,34 @@ export const getStudyQuotas = cache(async (): Promise<StudyQuota[]> => {
  * Returns the number created, so callers can tell the student when the app
  * has added work on their behalf rather than doing it silently.
  */
+/**
+ * Close out quota work for weeks that have ended.
+ *
+ * A quota is a RATE, not a backlog. You cannot do last week's French this
+ * week — those hours are simply gone. Leaving the tasks open meant the solver
+ * kept trying to place work in a window that had closed, failed every time,
+ * and reported it forever: one plan carried 1088 minutes of "couldn't be
+ * scheduled" for a week that had ended four days earlier.
+ *
+ * Dropped rather than deleted, so the week still shows honestly in attainment
+ * as a target that was missed.
+ */
+async function closeOutFinishedWeeks(todayKey: string): Promise<number> {
+  const supabase = await createClient();
+  const thisWeek = mondayOf(todayKey);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ status: "dropped" })
+    .not("quota_id", "is", null)
+    .lt("quota_week", thisWeek)
+    .in("status", ["todo", "in_progress", "blocked"])
+    .select("id");
+
+  if (error) return 0;
+  return data?.length ?? 0;
+}
+
 export async function ensureQuotaTasks(horizonDays = 21): Promise<number> {
   const supabase = await createClient();
   const ctx = await getUserContext();
@@ -64,6 +92,9 @@ export async function ensureQuotaTasks(horizonDays = 21): Promise<number> {
 
   const nowMin = toEpochMinute(new Date());
   const fromKey = localDateKey(nowMin, ctx.timezone);
+
+  // Retire last week's unmet hours before planning this week's.
+  await closeOutFinishedWeeks(fromKey);
   const toKey = localDateKey(
     addLocalDays(nowMin, horizonDays, ctx.timezone),
     ctx.timezone,

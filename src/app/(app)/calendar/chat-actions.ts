@@ -116,3 +116,73 @@ export async function applyChatIntent(raw: unknown) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// "Are you going in?"
+// ---------------------------------------------------------------------------
+
+/**
+ * Thursday is a self-directed study day, so it is the one day of the week that
+ * might not involve going to school at all. When it does not, the commute is
+ * fiction: 70 minutes of "Getting ready + bus" in the morning and 35 of
+ * "Travel home" in the afternoon, blocked out for journeys nobody is making.
+ *
+ * Cancelling them is the existing single-occurrence mechanism, so a staying-home
+ * Thursday is a subtraction that can be undone rather than an edit to the
+ * pattern. Answering "yes" writes nothing — the timetable already says yes.
+ */
+const COMMUTE_LABELS = ["Getting ready + bus", "Travel home"];
+
+export async function setCommuteCancelled(rawDateKey: unknown, cancelled: boolean) {
+  const dateKey = z.string().regex(DATE_KEY).safeParse(rawDateKey);
+  if (!dateKey.success) return { ok: false as const, error: "Bad date." };
+
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx) return { ok: false as const, error: "Not signed in." };
+
+  // 1970-01-01 was a Thursday; noon anchoring keeps this clear of DST.
+  const dow = new Date(`${dateKey.data}T12:00:00Z`).getUTCDay();
+
+  const { data: entries } = await supabase
+    .from("timetable_entries")
+    .select("id, label")
+    .eq("user_id", ctx.userId)
+    .eq("day_of_week", dow)
+    .in("label", COMMUTE_LABELS);
+
+  if (!entries?.length) {
+    return { ok: false as const, error: "No commute is scheduled that day." };
+  }
+
+  for (const entry of entries) {
+    if (cancelled) {
+      const { error } = await supabase.from("timetable_exceptions").insert({
+        user_id: ctx.userId,
+        entry_id: entry.id,
+        on_date: dateKey.data,
+        reason: "Not going in",
+      });
+      // Already cancelled is the desired state, not a failure.
+      if (error && error.code !== "23505") {
+        return { ok: false as const, error: error.message };
+      }
+    } else {
+      await supabase
+        .from("timetable_exceptions")
+        .delete()
+        .eq("entry_id", entry.id)
+        .eq("on_date", dateKey.data)
+        .eq("user_id", ctx.userId);
+    }
+  }
+
+  const replan = await generatePlan();
+  revalidatePath("/calendar");
+  return {
+    ok: true as const,
+    message: cancelled
+      ? `Commute cleared for ${dateKey.data} — that is 1h 45m back.${replan.ok ? " Plan updated." : ""}`
+      : `Commute restored for ${dateKey.data}.`,
+  };
+}
