@@ -254,6 +254,46 @@ describe("solver — guarantees", () => {
     }
   });
 
+  it("shares scarce capacity instead of starving the small subjects", () => {
+    // The real failure this fixes: a week short on capacity satisfied Maths and
+    // Physics completely while SAT, TOPIK, the Olympiad, Korean, IELTS and the
+    // weekly review were dropped to zero. Nine subjects at nothing so two could
+    // be at a hundred percent.
+    const tasks = [
+      task("maths", { remainingMin: 330, maxChunkMin: 75 }),
+      task("physics", { remainingMin: 240, maxChunkMin: 75 }),
+      task("english", { remainingMin: 210, maxChunkMin: 60 }),
+      task("sat", { remainingMin: 51, maxChunkMin: 45 }),
+      task("topik", { remainingMin: 90, maxChunkMin: 45 }),
+      task("olympiad", { remainingMin: 51, maxChunkMin: 60 }),
+      task("korean", { remainingMin: 60, maxChunkMin: 30 }),
+    ];
+    // Deliberately tight: nowhere near enough for everything.
+    const { blocks } = solve(
+      snapshot({ tasks, settings: { ...DEFAULT_SETTINGS, maxDailyFocusMin: 120 } }),
+    );
+
+    const served = new Set(blocks.map((b) => b.taskId));
+    for (const t of tasks) {
+      expect(served.has(t.id), `${t.id} got nothing`).toBe(true);
+    }
+  });
+
+  it("does not let one big task take the whole horizon before others start", () => {
+    const tasks = [
+      task("huge", { remainingMin: 600, maxChunkMin: 120 }),
+      task("small", { remainingMin: 30, maxChunkMin: 30 }),
+    ];
+    const { blocks } = solve(
+      snapshot({ tasks, settings: { ...DEFAULT_SETTINGS, maxDailyFocusMin: 120 } }),
+    );
+    const small = blocks.filter((b) => b.taskId === "small");
+    expect(small.length).toBeGreaterThan(0);
+    // and it should not be shoved to the very end of the horizon
+    const firstHuge = Math.min(...blocks.filter((b) => b.taskId === "huge").map((b) => b.startsAt));
+    expect(small[0].startsAt).toBeLessThan(firstHuge + 3 * 1440);
+  });
+
   it("finishes a prerequisite before its dependent starts", () => {
     const tasks = [
       task("draft", { remainingMin: 120, deadlineAt: at(5, 12) }),

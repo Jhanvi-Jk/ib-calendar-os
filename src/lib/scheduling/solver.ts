@@ -115,12 +115,24 @@ export function solve(snapshot: SolverSnapshot): SolveResult {
   for (const t of tasks) remainingDeps.set(t.id, dag.predecessors.get(t.id)!.length);
 
   const ready = weighted.filter((w) => remainingDeps.get(w.task.id) === 0);
+  // How many helpings each task has had. Re-sorting purely by priority sent a
+  // re-queued task straight back to the front, so the biggest simply ate every
+  // round and the round-robin never happened.
+  const helpings = new Map<string, number>();
   let guard = 0;
 
   while (ready.length > 0 && guard++ < 10_000) {
-    ready.sort(compareByPriority);
+    ready.sort((a, b) => {
+      const ha = helpings.get(a.task.id) ?? 0;
+      const hb = helpings.get(b.task.id) ?? 0;
+      // Everyone eats once before anyone eats twice; priority decides the
+      // order within a round.
+      if (ha !== hb) return ha - hb;
+      return compareByPriority(a, b);
+    });
     const current = ready.shift()!;
     const task = current.task;
+    helpings.set(task.id, (helpings.get(task.id) ?? 0) + 1);
 
     const already = placedMin.get(task.id) ?? 0;
     const need = Math.max(0, task.remainingMin - already);
@@ -163,9 +175,29 @@ export function solve(snapshot: SolverSnapshot): SolveResult {
         current.effectiveDeadline ?? snapshot.horizonEnd,
       );
 
+      /**
+       * Fair share: ask for ONE session, then go to the back of the queue.
+       *
+       * Asking for the whole task meant the first few consumed every free
+       * minute and the rest got nothing at all. With a week's capacity short,
+       * Maths and Physics were fully satisfied while SAT, TOPIK, the Olympiad,
+       * Korean, IELTS and the weekly review were dropped entirely — nine
+       * subjects at zero so two could be at a hundred percent. Scarcity should
+       * be shared, not handed to whoever sorts first.
+       */
+      // The share is ONE even session, sized from the whole remaining task
+      // rather than from the share itself — otherwise each visit takes a full
+      // maxChunk and the last one is left a stub, which is the orphan-remainder
+      // bug all over again.
+      const shareMax = Math.min(snapshot.settings.maxBlockMin, task.maxChunkMin);
+      const sessions = Math.max(1, Math.ceil(need / shareMax));
+      // An unsplittable task cannot be served in helpings — it needs one
+      // contiguous run or nothing, so it is always asked for in full.
+      const share = task.splittable ? Math.min(need, Math.ceil(need / sessions)) : need;
+
       const result = placeTask({
         task,
-        need,
+        need: share,
         window: { start: windowStart, end: windowEnd },
         free,
         budgets,
@@ -185,10 +217,18 @@ export function solve(snapshot: SolverSnapshot): SolveResult {
         placedEnd.set(task.id, Math.max(placedEnd.get(task.id) ?? b.endsAt, b.endsAt));
       }
 
+      const stillNeeded = task.remainingMin - (placedMin.get(task.id) ?? 0);
+
       if (result.shortfallMin > 0) {
+        // This share would not fit anywhere, so neither will the rest.
         infeasibility.push(
-          describeShortfall(task, result.shortfallMin, current.effectiveDeadline, snapshot),
+          describeShortfall(task, stillNeeded, current.effectiveDeadline, snapshot),
         );
+      } else if (stillNeeded > 0) {
+        // Served for now. Re-queue for a second helping once everyone else has
+        // had a first. Successors stay blocked until this is actually finished.
+        ready.push(current);
+        continue;
       } else {
         fullyPlaced.add(task.id);
       }
